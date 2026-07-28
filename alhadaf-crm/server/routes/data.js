@@ -67,7 +67,8 @@ router.post('/restore', (req, res) => {
       return res.render('restore', { done: null, error: 'ملف النسخة الاحتياطية غير صالح' });
     }
 
-    const restoreAll = db.transaction(() => {
+    db.exec('BEGIN');
+    try {
       db.prepare('DELETE FROM contact_log').run();
       db.prepare('DELETE FROM customers').run();
 
@@ -84,9 +85,12 @@ router.post('/restore', (req, res) => {
       if (Array.isArray(payload.sop) && payload.sop[0]) {
         db.prepare('UPDATE sop SET content=?, updated_at=? WHERE id=1').run(payload.sop[0].content, payload.sop[0].updated_at);
       }
-    });
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
 
-    restoreAll();
     res.render('restore', { done: payload.customers.length, error: null });
   } catch (err) {
     res.render('restore', { done: null, error: 'حصل خطأ أثناء الاستعادة: ' + err.message });

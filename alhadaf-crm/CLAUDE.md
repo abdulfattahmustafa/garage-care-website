@@ -5,7 +5,7 @@
 ## التقنيات المستخدمة ولماذا
 
 - **Node.js + Express**: خادم بسيط، أمر تشغيل واحد (`npm start`)، بدون خطوات بناء (build) معقدة — مناسب لمستخدم غير مبرمج.
-- **better-sqlite3**: قاعدة بيانات حقيقية بملف واحد (`data/alhadaf.db`)، لا تحتاج تثبيت سيرفر قاعدة بيانات منفصل، وسريعة ومتزامنة (synchronous API يبسّط الكود).
+- **node:sqlite (المدمجة في Node.js، وليست `better-sqlite3`)**: قاعدة بيانات حقيقية بملف واحد (`data/alhadaf.db`)، متزامنة (synchronous API يبسّط الكود). **تجنّبنا `better-sqlite3` عمدًا**: أول نسخة استخدمتها فشلت عند المالك (نسخة Node.js حديثة جدًا 24.18.0 على ويندوز بدون prebuilt binaries، فاضطر npm للبناء من المصدر عبر node-gyp، وفشل لعدم وجود Python/Visual Studio Build Tools). التبديل لـ `node:sqlite` (متوفرة افتراضيًا من Node 22.5+ بدون أي flag) ألغى الحاجة لأي تجميع أصلي (native compile) نهائيًا. الفرق الوحيد في الكود: `db.exec('PRAGMA ...')` بدل `db.pragma(...)`, والمعاملات (transactions) تُكتب يدويًا بـ `BEGIN/COMMIT/ROLLBACK` بدل `db.transaction()`.
 - **EJS**: قوالب HTML بسيطة تُصيَّر من السيرفر (server-rendered)، تدعم RTL والعربي بدون تعقيد أدوات بناء frontend حديثة.
 - **express-session**: جلسة بسيطة بكوكي، تكفي لحماية بكلمة مرور واحدة (لا يوجد نظام مستخدمين متعدد).
 - **json2csv**: تصدير Excel/CSV بدون مكتبات ثقيلة.
