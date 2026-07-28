@@ -2,7 +2,11 @@ const path = require('path');
 const fs = require('fs');
 const { DatabaseSync } = require('node:sqlite'); // built into Node (22.5+) - no native compiler needed
 
-const dataDir = path.join(__dirname, '..', 'data');
+// DATA_DIR lets a hosting provider point this at a persistent disk mount
+// (e.g. Render) instead of the app folder, which may be wiped on redeploy.
+const dataDir = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.join(__dirname, '..', 'data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 const db = new DatabaseSync(path.join(dataDir, 'alhadaf.db'));
