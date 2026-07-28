@@ -14,7 +14,13 @@
     <% } %>
 
     <div class="card">
-      <p class="muted">اختر ملف النسخة الاحتياطية (JSON) الذي تم تنزيله سابقًا من زر "نسخة احتياطية". <strong>تنبيه: الاستعادة تستبدل كل البيانات الحالية في النظام بالكامل.</strong></p>
+      <p class="muted">
+        زر "نسخة احتياطية" في القائمة يعطيك ملف Excel للقراءة والطباعة فقط، ولا يصلح للاستعادة.
+        لاستعادة البيانات تحتاج ملف تقني بصيغة JSON — نزّله من هنا:
+        <a href="/data/backup.json" class="btn btn-outline btn-sm" style="margin-right:6px">⬇️ تنزيل النسخة التقنية (JSON)</a>
+      </p>
+      <div class="divider"></div>
+      <p class="muted">اختر ملف الـ JSON اللي نزّلته سابقًا لاستعادته. <strong>تنبيه: الاستعادة تستبدل كل البيانات الحالية في النظام بالكامل.</strong></p>
       <div class="field">
         <input type="file" id="backupFile" accept="application/json">
       </div>
