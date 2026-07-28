@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><%- include('partials/head', { title: 'قائمة السيارات' }) %></head>
+<body>
+  <%- include('partials/nav', { active: 'cars' }) %>
+  <main class="page container">
+    <div class="section-title"><span class="bar"></span> قائمة السيارات</div>
+
+    <div class="card">
+      <p class="muted">هذي القائمة تظهر كاقتراحات عند إضافة عملية بيع (تختار الشركة، ثم الموديل، ثم السنة، ثم اللون). السعر المسجّل هنا هو <strong>سعر الشراء</strong> (اللي المعرض اشترى فيه السيارة)، وليس سعر البيع للعميل.</p>
+
+      <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
+
+      <form method="POST" action="/cars" class="form-row" style="align-items:flex-end; margin-top:14px">
+        <div class="field" style="flex:1 1 160px">
+          <label>الشركة</label>
+          <input type="text" name="brand" placeholder="مثال: Toyota" required>
+        </div>
+        <div class="field" style="flex:1 1 160px">
+          <label>الموديل</label>
+          <input type="text" name="model" placeholder="مثال: Camry" required>
+        </div>
+        <div class="field" style="flex:0 0 110px">
+          <label>السنة</label>
+          <input type="text" name="year" placeholder="2026" required>
+        </div>
+        <div class="field" style="flex:1 1 140px">
+          <label>اللون</label>
+          <input type="text" name="color" placeholder="مثال: أبيض" required>
+        </div>
+        <div class="field" style="flex:0 0 160px">
+          <label>سعر الشراء (ريال)</label>
+          <input type="number" step="0.01" name="purchase_price" placeholder="اختياري">
+        </div>
+        <div class="field" style="flex:0 0 auto">
+          <button type="submit" class="btn btn-primary">+ إضافة</button>
+        </div>
+      </form>
+
+      <div class="divider"></div>
+
+      <% if (!cars.length) { %>
+        <p class="muted">لا يوجد سيارات مضافة بعد.</p>
+      <% } else { %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>الشركة</th><th>الموديل</th><th>السنة</th><th>اللون</th><th>سعر الشراء</th><th></th></tr></thead>
+          <tbody>
+            <% cars.forEach(c => { %>
+              <tr>
+                <td><%= c.brand %></td>
+                <td><%= c.model %></td>
+                <td><%= c.year %></td>
+                <td><%= c.color %></td>
+                <td><%= c.purchase_price ? Number(c.purchase_price).toLocaleString('en-US') + ' ريال' : '—' %></td>
+                <td>
+                  <form method="POST" action="/cars/<%= c.id %>/delete" onsubmit="return confirm('حذف «<%= c.brand %> <%= c.model %> <%= c.year %> - <%= c.color %>» من القائمة؟ (عمليات البيع القديمة المرتبطة فيها تبقى كما هي)');">
+                    <button type="submit" class="btn btn-danger btn-sm">حذف</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% } %>
+    </div>
+  </main>
+</body>
+</html>

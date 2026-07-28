@@ -21,6 +21,10 @@ function getSalespeople() {
     .all().map(r => r.name);
 }
 
+function getCarInventory() {
+  return db.prepare('SELECT * FROM car_inventory ORDER BY brand, model, year, color').all();
+}
+
 // --- List with search / filter / sort / pagination ---
 router.get('/', (req, res) => {
   const { q = '', payment_method = '', salesperson = '', month = '', status = '' } = req.query;
@@ -59,7 +63,7 @@ router.get('/', (req, res) => {
 });
 
 router.get('/new', (req, res) => {
-  res.render('customers/form', { customer: null, errors: {}, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople() });
+  res.render('customers/form', { customer: null, errors: {}, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(), carInventory: getCarInventory() });
 });
 
 function validateBody(body) {
@@ -89,13 +93,13 @@ router.post('/', (req, res) => {
   }
 
   if (Object.keys(errors).length) {
-    return res.status(400).render('customers/form', { customer: body, errors, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople() });
+    return res.status(400).render('customers/form', { customer: body, errors, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(), carInventory: getCarInventory() });
   }
 
   const ts = nowISO();
   const stmt = db.prepare(`INSERT INTO customers
-    (customer_name, national_id, sale_date, payment_method, delivery_at, car_type, vin, estimara_number, phone, salesperson, price, notes, status, reported, followup_done, is_demo, created_at, updated_at)
-    VALUES (@customer_name, @national_id, @sale_date, @payment_method, @delivery_at, @car_type, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, 0, 0, 0, @created_at, @updated_at)`);
+    (customer_name, national_id, sale_date, payment_method, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, followup_done, is_demo, created_at, updated_at)
+    VALUES (@customer_name, @national_id, @sale_date, @payment_method, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, 0, 0, 0, @created_at, @updated_at)`);
 
   const info = stmt.run({
     customer_name: body.customer_name.trim(),
@@ -104,6 +108,7 @@ router.post('/', (req, res) => {
     payment_method: body.payment_method,
     delivery_at: body.delivery_at || null,
     car_type: body.car_type.trim(),
+    car_inventory_id: body.car_inventory_id ? parseInt(body.car_inventory_id) : null,
     vin: body.vin.toUpperCase(),
     estimara_number: body.estimara_number.trim(),
     phone: body.phone ? body.phone.trim() : null,
@@ -127,7 +132,7 @@ router.get('/:id', (req, res) => {
 router.get('/:id/edit', (req, res) => {
   const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   if (!customer) return res.status(404).render('404');
-  res.render('customers/form', { customer, errors: {}, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople() });
+  res.render('customers/form', { customer, errors: {}, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(), carInventory: getCarInventory() });
 });
 
 router.post('/:id', (req, res) => {
@@ -147,12 +152,12 @@ router.post('/:id', (req, res) => {
   }
 
   if (Object.keys(errors).length) {
-    return res.status(400).render('customers/form', { customer: { ...body, id: req.params.id }, errors, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople() });
+    return res.status(400).render('customers/form', { customer: { ...body, id: req.params.id }, errors, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(), carInventory: getCarInventory() });
   }
 
   db.prepare(`UPDATE customers SET
     customer_name=@customer_name, national_id=@national_id, sale_date=@sale_date, payment_method=@payment_method,
-    delivery_at=@delivery_at, car_type=@car_type, vin=@vin, estimara_number=@estimara_number, phone=@phone,
+    delivery_at=@delivery_at, car_type=@car_type, car_inventory_id=@car_inventory_id, vin=@vin, estimara_number=@estimara_number, phone=@phone,
     salesperson=@salesperson, price=@price, notes=@notes, status=@status, updated_at=@updated_at
     WHERE id=@id`).run({
     customer_name: body.customer_name.trim(),
@@ -161,6 +166,7 @@ router.post('/:id', (req, res) => {
     payment_method: body.payment_method,
     delivery_at: body.delivery_at || null,
     car_type: body.car_type.trim(),
+    car_inventory_id: body.car_inventory_id ? parseInt(body.car_inventory_id) : null,
     vin: body.vin.toUpperCase(),
     estimara_number: body.estimara_number.trim(),
     phone: body.phone ? body.phone.trim() : null,

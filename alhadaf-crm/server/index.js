@@ -58,6 +58,7 @@ app.use('/customers', require('./routes/customers'));
 app.use('/sop', require('./routes/sop'));
 app.use('/data', require('./routes/data'));
 app.use('/settings', require('./routes/settings'));
+app.use('/cars', require('./routes/cars'));
 
 app.use((req, res) => {
   res.status(404).render('404');

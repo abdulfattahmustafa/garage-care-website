@@ -10,6 +10,18 @@ db.exec('PRAGMA journal_mode = WAL');
 db.exec('PRAGMA foreign_keys = ON');
 
 db.exec(`
+CREATE TABLE IF NOT EXISTS car_inventory (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  brand TEXT NOT NULL,
+  model TEXT NOT NULL,
+  year TEXT NOT NULL,
+  color TEXT NOT NULL,
+  purchase_price REAL,
+  is_demo INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  UNIQUE(brand, model, year, color)
+);
+
 CREATE TABLE IF NOT EXISTS customers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   customer_name TEXT NOT NULL,
@@ -18,6 +30,7 @@ CREATE TABLE IF NOT EXISTS customers (
   payment_method TEXT NOT NULL,
   delivery_at TEXT,
   car_type TEXT NOT NULL,
+  car_inventory_id INTEGER REFERENCES car_inventory(id) ON DELETE SET NULL,
   vin TEXT NOT NULL UNIQUE,
   estimara_number TEXT NOT NULL UNIQUE,
   phone TEXT,
@@ -61,6 +74,13 @@ CREATE TABLE IF NOT EXISTS salespeople (
 CREATE INDEX IF NOT EXISTS idx_customers_sale_date ON customers(sale_date);
 CREATE INDEX IF NOT EXISTS idx_contact_log_customer ON contact_log(customer_id);
 `);
+
+// Migration for installs created before car_inventory existed: CREATE TABLE
+// IF NOT EXISTS above won't add a column to an already-existing customers table.
+const customerCols = db.prepare("PRAGMA table_info(customers)").all().map(c => c.name);
+if (!customerCols.includes('car_inventory_id')) {
+  db.exec('ALTER TABLE customers ADD COLUMN car_inventory_id INTEGER REFERENCES car_inventory(id) ON DELETE SET NULL');
+}
 
 const sopExists = db.prepare('SELECT 1 FROM sop WHERE id = 1').get();
 if (!sopExists) {

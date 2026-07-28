@@ -179,7 +179,9 @@ router.get('/backup.json', (req, res) => {
   const customers = db.prepare('SELECT * FROM customers').all();
   const contact_log = db.prepare('SELECT * FROM contact_log').all();
   const sop = db.prepare('SELECT * FROM sop').all();
-  const payload = { exported_at: new Date().toISOString(), customers, contact_log, sop };
+  const salespeople = db.prepare('SELECT * FROM salespeople').all();
+  const car_inventory = db.prepare('SELECT * FROM car_inventory').all();
+  const payload = { exported_at: new Date().toISOString(), customers, contact_log, sop, salespeople, car_inventory };
 
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="alhadaf-crm-backup-${new Date().toISOString().slice(0,10)}.json"`);
@@ -201,10 +203,22 @@ router.post('/restore', (req, res) => {
     try {
       db.prepare('DELETE FROM contact_log').run();
       db.prepare('DELETE FROM customers').run();
+      db.prepare('DELETE FROM car_inventory').run();
+      db.prepare('DELETE FROM salespeople').run();
+
+      if (Array.isArray(payload.car_inventory)) {
+        const insCar = db.prepare(`INSERT INTO car_inventory (id, brand, model, year, color, purchase_price, is_demo, created_at) VALUES (@id, @brand, @model, @year, @color, @purchase_price, @is_demo, @created_at)`);
+        for (const c of payload.car_inventory) insCar.run(c);
+      }
+
+      if (Array.isArray(payload.salespeople)) {
+        const insSalesperson = db.prepare(`INSERT INTO salespeople (id, name, is_demo, created_at) VALUES (@id, @name, @is_demo, @created_at)`);
+        for (const s of payload.salespeople) insSalesperson.run(s);
+      }
 
       const insCustomer = db.prepare(`INSERT INTO customers
-        (id, customer_name, national_id, sale_date, payment_method, delivery_at, car_type, vin, estimara_number, phone, salesperson, price, notes, status, reported, reported_at, followup_done, followup_result, followup_note, followup_at, is_demo, created_at, updated_at)
-        VALUES (@id, @customer_name, @national_id, @sale_date, @payment_method, @delivery_at, @car_type, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, @reported, @reported_at, @followup_done, @followup_result, @followup_note, @followup_at, @is_demo, @created_at, @updated_at)`);
+        (id, customer_name, national_id, sale_date, payment_method, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, reported_at, followup_done, followup_result, followup_note, followup_at, is_demo, created_at, updated_at)
+        VALUES (@id, @customer_name, @national_id, @sale_date, @payment_method, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, @reported, @reported_at, @followup_done, @followup_result, @followup_note, @followup_at, @is_demo, @created_at, @updated_at)`);
       for (const c of payload.customers) insCustomer.run(c);
 
       if (Array.isArray(payload.contact_log)) {

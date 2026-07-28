@@ -5,7 +5,8 @@ const isClear = process.argv.includes('--clear');
 if (isClear) {
   const c1 = db.prepare('DELETE FROM customers WHERE is_demo = 1').run();
   const c2 = db.prepare('DELETE FROM salespeople WHERE is_demo = 1').run();
-  console.log(`\n✅ تم حذف ${c1.changes} عميل تجريبي و ${c2.changes} بائع تجريبي. البيانات الحقيقية لم تُمس.\n`);
+  const c3 = db.prepare('DELETE FROM car_inventory WHERE is_demo = 1').run();
+  console.log(`\n✅ تم حذف ${c1.changes} عميل تجريبي، ${c2.changes} بائع تجريبي، ${c3.changes} سيارة تجريبية من القائمة. البيانات الحقيقية لم تُمس.\n`);
   process.exit(0);
 }
 
@@ -20,6 +21,16 @@ function daysAgo(n) { const d = new Date(now); d.setDate(d.getDate() - n); retur
 function iso(d) { return d.toISOString().slice(0, 10); }
 function isoDT(d) { return d.toISOString().slice(0, 16); }
 
+const ts0 = now.toISOString();
+const insertCar = db.prepare('INSERT INTO car_inventory (brand, model, year, color, purchase_price, is_demo, created_at) VALUES (?,?,?,?,?,1,?)');
+const demoCars = [
+  { brand: 'Toyota', model: 'Camry', year: '2026', color: 'أبيض', purchase_price: 118000 },
+  { brand: 'Hyundai', model: 'Tucson', year: '2025', color: 'أسود', purchase_price: 106000 },
+  { brand: 'Nissan', model: 'Sunny', year: '2025', color: 'فضي', purchase_price: 55000 },
+  { brand: 'Suzuki', model: 'Ciaz', year: '2025', color: 'أبيض', purchase_price: 52000 },
+];
+const carIds = demoCars.map(c => insertCar.run(c.brand, c.model, c.year, c.color, c.purchase_price, ts0).lastInsertRowid);
+
 const demoCustomers = [
   {
     customer_name: 'خالد عبدالله السلمي',
@@ -27,7 +38,8 @@ const demoCustomers = [
     sale_date: iso(daysAgo(45)),
     payment_method: 'تمويل (إيجار تمويلي)',
     delivery_at: isoDT(daysAgo(44)),
-    car_type: 'Toyota Camry 2026',
+    car_type: 'Toyota Camry 2026 - أبيض',
+    car_inventory_id: carIds[0],
     vin: 'JTNBE46K003123456',
     estimara_number: 'EST-100234',
     phone: '0501234567',
@@ -47,7 +59,8 @@ const demoCustomers = [
     sale_date: iso(daysAgo(3)),
     payment_method: 'نقدي',
     delivery_at: isoDT(daysAgo(2)),
-    car_type: 'Hyundai Tucson 2025',
+    car_type: 'Hyundai Tucson 2025 - أسود',
+    car_inventory_id: carIds[1],
     vin: 'KMHJ381AKLU234567',
     estimara_number: 'EST-100235',
     phone: '0512345678',
@@ -67,7 +80,8 @@ const demoCustomers = [
     sale_date: iso(daysAgo(75)),
     payment_method: 'مرابحة',
     delivery_at: isoDT(daysAgo(74)),
-    car_type: 'Nissan Sunny 2025',
+    car_type: 'Nissan Sunny 2025 - فضي',
+    car_inventory_id: carIds[2],
     vin: '3N1AB7AP0KY345678',
     estimara_number: 'EST-100236',
     phone: '0523456789',
@@ -87,7 +101,8 @@ const demoCustomers = [
     sale_date: iso(daysAgo(10)),
     payment_method: 'شركات',
     delivery_at: isoDT(daysAgo(9)),
-    car_type: 'Suzuki Ciaz 2025',
+    car_type: 'Suzuki Ciaz 2025 - أبيض',
+    car_inventory_id: carIds[3],
     vin: 'MHYFN72A0KJ456789',
     estimara_number: 'EST-100237',
     phone: '0534567890',
@@ -105,8 +120,8 @@ const demoCustomers = [
 
 const ts = now.toISOString();
 const insert = db.prepare(`INSERT INTO customers
-  (customer_name, national_id, sale_date, payment_method, delivery_at, car_type, vin, estimara_number, phone, salesperson, price, notes, status, reported, reported_at, followup_done, followup_result, followup_note, followup_at, is_demo, created_at, updated_at)
-  VALUES (@customer_name, @national_id, @sale_date, @payment_method, @delivery_at, @car_type, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, @reported, @reported_at, @followup_done, @followup_result, @followup_note, @followup_at, 1, @created_at, @updated_at)`);
+  (customer_name, national_id, sale_date, payment_method, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, reported_at, followup_done, followup_result, followup_note, followup_at, is_demo, created_at, updated_at)
+  VALUES (@customer_name, @national_id, @sale_date, @payment_method, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, @reported, @reported_at, @followup_done, @followup_result, @followup_note, @followup_at, 1, @created_at, @updated_at)`);
 
 const insertLog = db.prepare(`INSERT INTO contact_log (customer_id, contact_date, type, note, created_at) VALUES (?,?,?,?,?)`);
 

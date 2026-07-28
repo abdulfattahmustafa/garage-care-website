@@ -51,16 +51,30 @@
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="field">
-          <label>نوع السيارة (الماركة + الموديل + سنة الصنع) *</label>
-          <input type="text" name="car_type" placeholder="مثال: Toyota Camry 2026" value="<%= customer ? customer.car_type || '' : '' %>" class="<%= errors.car_type ? 'invalid' : '' %>" required>
-          <% if (errors.car_type) { %><div class="err"><%= errors.car_type %></div><% } %>
+      <div class="field">
+        <label>نوع السيارة *</label>
+        <div class="form-row" id="carPickerSelects">
+          <select id="carBrand"><option value="">اختر الشركة...</option></select>
+          <select id="carModel" disabled><option value="">اختر الموديل...</option></select>
+          <select id="carYear" disabled><option value="">اختر السنة...</option></select>
+          <select id="carColor" disabled><option value="">اختر اللون...</option></select>
         </div>
+        <input type="text" id="carManualInput" placeholder="مثال: Toyota Camry 2026 - أبيض" style="display:none; margin-top:8px">
+        <div class="hint">
+          <label><input type="checkbox" id="manualCarToggle"> السيارة مو موجودة بالقائمة (كتابة يدوية)</label>
+          — أو <a href="/cars" target="_blank">أضفها لقائمة السيارات</a> وارجع حدّث هذي الصفحة
+        </div>
+        <input type="hidden" name="car_type" id="carTypeHidden" value="<%= customer ? customer.car_type || '' : '' %>">
+        <input type="hidden" name="car_inventory_id" id="carInventoryIdHidden" value="<%= customer ? customer.car_inventory_id || '' : '' %>">
+        <% if (errors.car_type) { %><div class="err"><%= errors.car_type %></div><% } %>
+      </div>
+
+      <div class="form-row">
         <div class="field">
           <label>سعر البيع (ريال)</label>
           <input type="number" step="0.01" name="price" value="<%= customer ? customer.price || '' : '' %>">
         </div>
+        <div class="field"></div>
       </div>
 
       <div class="form-row">
@@ -110,6 +124,96 @@
   </main>
   <script>
     document.querySelector('input[name="vin"]').addEventListener('input', function(){ this.value = this.value.toUpperCase(); });
+
+    const CAR_INVENTORY = <%- JSON.stringify(carInventory) %>;
+    const existingCustomer = <%- JSON.stringify(customer || null) %>;
+
+    const brandSel = document.getElementById('carBrand');
+    const modelSel = document.getElementById('carModel');
+    const yearSel = document.getElementById('carYear');
+    const colorSel = document.getElementById('carColor');
+    const selectsWrap = document.getElementById('carPickerSelects');
+    const manualToggle = document.getElementById('manualCarToggle');
+    const manualInput = document.getElementById('carManualInput');
+    const hiddenType = document.getElementById('carTypeHidden');
+    const hiddenInvId = document.getElementById('carInventoryIdHidden');
+
+    function uniqueBy(list, key) { return [...new Set(list.map(i => i[key]))]; }
+    function fillSelect(sel, values, placeholder) {
+      sel.innerHTML = '<option value="">' + placeholder + '</option>' +
+        values.map(v => '<option value="' + v + '">' + v + '</option>').join('');
+    }
+    function resetFrom(level) {
+      if (level <= 1) { modelSel.disabled = true; fillSelect(modelSel, [], 'اختر الموديل...'); }
+      if (level <= 2) { yearSel.disabled = true; fillSelect(yearSel, [], 'اختر السنة...'); }
+      if (level <= 3) { colorSel.disabled = true; fillSelect(colorSel, [], 'اختر اللون...'); }
+      hiddenType.value = '';
+      hiddenInvId.value = '';
+    }
+
+    fillSelect(brandSel, uniqueBy(CAR_INVENTORY, 'brand'), 'اختر الشركة...');
+
+    brandSel.addEventListener('change', () => {
+      resetFrom(1);
+      if (!brandSel.value) return;
+      const models = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value), 'model');
+      fillSelect(modelSel, models, 'اختر الموديل...');
+      modelSel.disabled = false;
+    });
+
+    modelSel.addEventListener('change', () => {
+      resetFrom(2);
+      if (!modelSel.value) return;
+      const years = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value && c.model === modelSel.value), 'year');
+      fillSelect(yearSel, years, 'اختر السنة...');
+      yearSel.disabled = false;
+    });
+
+    yearSel.addEventListener('change', () => {
+      resetFrom(3);
+      if (!yearSel.value) return;
+      const colors = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value), 'color');
+      fillSelect(colorSel, colors, 'اختر اللون...');
+      colorSel.disabled = false;
+    });
+
+    colorSel.addEventListener('change', () => {
+      if (!colorSel.value) { hiddenType.value = ''; hiddenInvId.value = ''; return; }
+      const match = CAR_INVENTORY.find(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value && c.color === colorSel.value);
+      hiddenType.value = brandSel.value + ' ' + modelSel.value + ' ' + yearSel.value + ' - ' + colorSel.value;
+      hiddenInvId.value = match ? match.id : '';
+    });
+
+    manualToggle.addEventListener('change', () => {
+      if (manualToggle.checked) {
+        selectsWrap.style.display = 'none';
+        manualInput.style.display = '';
+        hiddenInvId.value = '';
+        hiddenType.value = manualInput.value;
+      } else {
+        manualInput.style.display = 'none';
+        selectsWrap.style.display = '';
+        hiddenType.value = '';
+      }
+    });
+    manualInput.addEventListener('input', () => { hiddenType.value = manualInput.value; });
+
+    // Pre-fill when editing an existing sale (or re-showing the form after a validation error)
+    if (existingCustomer) {
+      const invId = existingCustomer.car_inventory_id;
+      const match = invId ? CAR_INVENTORY.find(c => String(c.id) === String(invId)) : null;
+      if (match) {
+        brandSel.value = match.brand; brandSel.dispatchEvent(new Event('change'));
+        modelSel.value = match.model; modelSel.dispatchEvent(new Event('change'));
+        yearSel.value = String(match.year); yearSel.dispatchEvent(new Event('change'));
+        colorSel.value = match.color; colorSel.dispatchEvent(new Event('change'));
+      } else if (existingCustomer.car_type) {
+        manualToggle.checked = true;
+        manualToggle.dispatchEvent(new Event('change'));
+        manualInput.value = existingCustomer.car_type;
+        hiddenType.value = existingCustomer.car_type;
+      }
+    }
   </script>
 </body>
 </html>
