@@ -51,6 +51,13 @@ CREATE TABLE IF NOT EXISTS sop (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS salespeople (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  is_demo INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_customers_sale_date ON customers(sale_date);
 CREATE INDEX IF NOT EXISTS idx_contact_log_customer ON contact_log(customer_id);
 `);

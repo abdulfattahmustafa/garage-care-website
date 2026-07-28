@@ -9,9 +9,16 @@ const PAGE_SIZE = 20;
 
 function nowISO() { return new Date().toISOString(); }
 
+// Merges the managed list (Settings page) with any older free-text names
+// already used on existing customer records, so past records never
+// disappear from filters even after someone is removed from Settings.
 function getSalespeople() {
-  return db.prepare(`SELECT DISTINCT salesperson FROM customers WHERE salesperson IS NOT NULL AND salesperson != '' ORDER BY salesperson`)
-    .all().map(r => r.salesperson);
+  return db.prepare(`
+    SELECT name FROM salespeople
+    UNION
+    SELECT salesperson AS name FROM customers WHERE salesperson IS NOT NULL AND salesperson != ''
+    ORDER BY name`)
+    .all().map(r => r.name);
 }
 
 // --- List with search / filter / sort / pagination ---
@@ -52,7 +59,7 @@ router.get('/', (req, res) => {
 });
 
 router.get('/new', (req, res) => {
-  res.render('customers/form', { customer: null, errors: {}, PAYMENT_METHODS, STATUSES });
+  res.render('customers/form', { customer: null, errors: {}, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople() });
 });
 
 function validateBody(body) {
@@ -82,7 +89,7 @@ router.post('/', (req, res) => {
   }
 
   if (Object.keys(errors).length) {
-    return res.status(400).render('customers/form', { customer: body, errors, PAYMENT_METHODS, STATUSES });
+    return res.status(400).render('customers/form', { customer: body, errors, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople() });
   }
 
   const ts = nowISO();
@@ -120,7 +127,7 @@ router.get('/:id', (req, res) => {
 router.get('/:id/edit', (req, res) => {
   const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   if (!customer) return res.status(404).render('404');
-  res.render('customers/form', { customer, errors: {}, PAYMENT_METHODS, STATUSES });
+  res.render('customers/form', { customer, errors: {}, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople() });
 });
 
 router.post('/:id', (req, res) => {
@@ -140,7 +147,7 @@ router.post('/:id', (req, res) => {
   }
 
   if (Object.keys(errors).length) {
-    return res.status(400).render('customers/form', { customer: { ...body, id: req.params.id }, errors, PAYMENT_METHODS, STATUSES });
+    return res.status(400).render('customers/form', { customer: { ...body, id: req.params.id }, errors, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople() });
   }
 
   db.prepare(`UPDATE customers SET

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><%- include('partials/head', { title: 'الإعدادات' }) %></head>
+<body>
+  <%- include('partials/nav', { active: 'settings' }) %>
+  <main class="page container">
+    <div class="section-title"><span class="bar"></span> الإعدادات</div>
+
+    <div class="card">
+      <div class="section-title" style="font-size:16px"><span class="bar"></span> قائمة البائعين</div>
+      <p class="muted">هذي القائمة تظهر عند إضافة أو تعديل عملية بيع، وفي فلترة صفحة العملاء. حذف اسم من هنا لا يمسح بيانات العملاء القدامى المرتبطين فيه، بس يشيله من القائمة لعمليات البيع الجديدة.</p>
+
+      <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
+
+      <form method="POST" action="/settings/salespeople" class="form-row" style="align-items:flex-end; margin-top:14px">
+        <div class="field" style="flex:1 1 260px">
+          <label>اسم بائع جديد</label>
+          <input type="text" name="name" placeholder="مثال: أحمد سالم" required>
+        </div>
+        <div class="field" style="flex:0 0 auto">
+          <button type="submit" class="btn btn-primary">+ إضافة</button>
+        </div>
+      </form>
+
+      <div class="divider"></div>
+
+      <% if (!salespeople.length) { %>
+        <p class="muted">لا يوجد بائعين مضافين بعد.</p>
+      <% } %>
+      <% salespeople.forEach(s => { %>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border)">
+          <span><%= s.name %></span>
+          <form method="POST" action="/settings/salespeople/<%= s.id %>/delete" onsubmit="return confirm('حذف «<%= s.name %>» من القائمة؟ (سجلات مبيعاته القديمة تبقى كما هي)');">
+            <button type="submit" class="btn btn-danger btn-sm">حذف</button>
+          </form>
+        </div>
+      <% }) %>
+    </div>
+  </main>
+</body>
+</html>

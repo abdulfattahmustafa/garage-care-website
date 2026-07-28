@@ -3,8 +3,9 @@ const db = require('./db');
 const isClear = process.argv.includes('--clear');
 
 if (isClear) {
-  const info = db.prepare('DELETE FROM customers WHERE is_demo = 1').run();
-  console.log(`\n✅ تم حذف ${info.changes} عميل تجريبي. البيانات الحقيقية لم تُمس.\n`);
+  const c1 = db.prepare('DELETE FROM customers WHERE is_demo = 1').run();
+  const c2 = db.prepare('DELETE FROM salespeople WHERE is_demo = 1').run();
+  console.log(`\n✅ تم حذف ${c1.changes} عميل تجريبي و ${c2.changes} بائع تجريبي. البيانات الحقيقية لم تُمس.\n`);
   process.exit(0);
 }
 
@@ -118,6 +119,9 @@ for (const c of demoCustomers) {
 insertLog.run(ids[0], iso(daysAgo(40)), 'مكالمة', 'اطمأننا عليه بعد أسبوع من التسليم، كل شيء تمام', ts);
 insertLog.run(ids[2], iso(daysAgo(60)), 'زيارة', 'زار المعرض للاستفسار عن صيانة الـ 1000 كم', ts);
 insertLog.run(ids[3], iso(daysAgo(5)), 'رسالة', 'تم إرسال رسالة واتساب لمتابعة شكواها بخصوص الضمان', ts);
+
+const insertSalesperson = db.prepare('INSERT OR IGNORE INTO salespeople (name, is_demo, created_at) VALUES (?, 1, ?)');
+['محمد العتيبي', 'نورة الدوسري'].forEach(name => insertSalesperson.run(name, ts));
 
 console.log(`\n✅ تمت إضافة ${demoCustomers.length} عملاء تجريبيين + سجل تواصل تجريبي.`);
 console.log('   لحذف البيانات التجريبية قبل إدخال بياناتك الحقيقية شغّل: npm run clear-demo\n');

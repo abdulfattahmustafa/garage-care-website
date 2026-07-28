@@ -79,7 +79,13 @@
       <div class="form-row">
         <div class="field">
           <label>اسم البائع المسؤول</label>
-          <input type="text" name="salesperson" value="<%= customer ? customer.salesperson || '' : '' %>">
+          <select name="salesperson">
+            <option value="">غير محدد</option>
+            <% salespeople.forEach(s => { %>
+              <option value="<%= s %>" <%= customer && customer.salesperson===s ? 'selected':'' %>><%= s %></option>
+            <% }) %>
+          </select>
+          <div class="hint">ما تلقى الاسم؟ <a href="/settings" target="_blank">أضفه من صفحة الإعدادات</a> وارجع حدّث هذي الصفحة</div>
         </div>
         <div class="field">
           <label>حالة العميل</label>
