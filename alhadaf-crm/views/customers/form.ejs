@@ -57,9 +57,10 @@
           <select id="carBrand"><option value="">اختر الشركة...</option></select>
           <select id="carModel" disabled><option value="">اختر الموديل...</option></select>
           <select id="carYear" disabled><option value="">اختر السنة...</option></select>
+          <select id="carTrim" disabled><option value="">اختر الفئة...</option></select>
           <select id="carColor" disabled><option value="">اختر اللون...</option></select>
         </div>
-        <input type="text" id="carManualInput" placeholder="مثال: Toyota Camry 2026 - أبيض" style="display:none; margin-top:8px">
+        <input type="text" id="carManualInput" placeholder="مثال: Toyota Camry 2026 GLX - أبيض" style="display:none; margin-top:8px">
         <div class="hint">
           <label><input type="checkbox" id="manualCarToggle"> السيارة مو موجودة بالقائمة (كتابة يدوية)</label>
           — أو <a href="/cars" target="_blank">أضفها لقائمة السيارات</a> وارجع حدّث هذي الصفحة
@@ -131,6 +132,7 @@
     const brandSel = document.getElementById('carBrand');
     const modelSel = document.getElementById('carModel');
     const yearSel = document.getElementById('carYear');
+    const trimSel = document.getElementById('carTrim');
     const colorSel = document.getElementById('carColor');
     const selectsWrap = document.getElementById('carPickerSelects');
     const manualToggle = document.getElementById('manualCarToggle');
@@ -146,7 +148,8 @@
     function resetFrom(level) {
       if (level <= 1) { modelSel.disabled = true; fillSelect(modelSel, [], 'اختر الموديل...'); }
       if (level <= 2) { yearSel.disabled = true; fillSelect(yearSel, [], 'اختر السنة...'); }
-      if (level <= 3) { colorSel.disabled = true; fillSelect(colorSel, [], 'اختر اللون...'); }
+      if (level <= 3) { trimSel.disabled = true; fillSelect(trimSel, [], 'اختر الفئة...'); }
+      if (level <= 4) { colorSel.disabled = true; fillSelect(colorSel, [], 'اختر اللون...'); }
       hiddenType.value = '';
       hiddenInvId.value = '';
     }
@@ -172,15 +175,23 @@
     yearSel.addEventListener('change', () => {
       resetFrom(3);
       if (!yearSel.value) return;
-      const colors = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value), 'color');
+      const trims = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value), 'trim');
+      fillSelect(trimSel, trims, 'اختر الفئة...');
+      trimSel.disabled = false;
+    });
+
+    trimSel.addEventListener('change', () => {
+      resetFrom(4);
+      if (!trimSel.value) return;
+      const colors = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value && c.trim === trimSel.value), 'color');
       fillSelect(colorSel, colors, 'اختر اللون...');
       colorSel.disabled = false;
     });
 
     colorSel.addEventListener('change', () => {
       if (!colorSel.value) { hiddenType.value = ''; hiddenInvId.value = ''; return; }
-      const match = CAR_INVENTORY.find(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value && c.color === colorSel.value);
-      hiddenType.value = brandSel.value + ' ' + modelSel.value + ' ' + yearSel.value + ' - ' + colorSel.value;
+      const match = CAR_INVENTORY.find(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value && c.trim === trimSel.value && c.color === colorSel.value);
+      hiddenType.value = brandSel.value + ' ' + modelSel.value + ' ' + yearSel.value + ' ' + trimSel.value + ' - ' + colorSel.value;
       hiddenInvId.value = match ? match.id : '';
     });
 
@@ -206,6 +217,7 @@
         brandSel.value = match.brand; brandSel.dispatchEvent(new Event('change'));
         modelSel.value = match.model; modelSel.dispatchEvent(new Event('change'));
         yearSel.value = String(match.year); yearSel.dispatchEvent(new Event('change'));
+        trimSel.value = match.trim; trimSel.dispatchEvent(new Event('change'));
         colorSel.value = match.color; colorSel.dispatchEvent(new Event('change'));
       } else if (existingCustomer.car_type) {
         manualToggle.checked = true;

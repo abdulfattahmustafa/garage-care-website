@@ -207,7 +207,7 @@ router.post('/restore', (req, res) => {
       db.prepare('DELETE FROM salespeople').run();
 
       if (Array.isArray(payload.car_inventory)) {
-        const insCar = db.prepare(`INSERT INTO car_inventory (id, brand, model, year, color, purchase_price, is_demo, created_at) VALUES (@id, @brand, @model, @year, @color, @purchase_price, @is_demo, @created_at)`);
+        const insCar = db.prepare(`INSERT INTO car_inventory (id, brand, model, year, trim, color, purchase_price, is_demo, created_at) VALUES (@id, @brand, @model, @year, @trim, @color, @purchase_price, @is_demo, @created_at)`);
         for (const c of payload.car_inventory) insCar.run(c);
       }
 

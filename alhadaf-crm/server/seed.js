@@ -22,14 +22,14 @@ function iso(d) { return d.toISOString().slice(0, 10); }
 function isoDT(d) { return d.toISOString().slice(0, 16); }
 
 const ts0 = now.toISOString();
-const insertCar = db.prepare('INSERT INTO car_inventory (brand, model, year, color, purchase_price, is_demo, created_at) VALUES (?,?,?,?,?,1,?)');
+const insertCar = db.prepare('INSERT INTO car_inventory (brand, model, year, trim, color, purchase_price, is_demo, created_at) VALUES (?,?,?,?,?,?,1,?)');
 const demoCars = [
-  { brand: 'Toyota', model: 'Camry', year: '2026', color: 'أبيض', purchase_price: 118000 },
-  { brand: 'Hyundai', model: 'Tucson', year: '2025', color: 'أسود', purchase_price: 106000 },
-  { brand: 'Nissan', model: 'Sunny', year: '2025', color: 'فضي', purchase_price: 55000 },
-  { brand: 'Suzuki', model: 'Ciaz', year: '2025', color: 'أبيض', purchase_price: 52000 },
+  { brand: 'Toyota', model: 'Camry', year: '2026', trim: 'GLX', color: 'أبيض', purchase_price: 118000 },
+  { brand: 'Hyundai', model: 'Tucson', year: '2025', trim: 'Comfort', color: 'أسود', purchase_price: 106000 },
+  { brand: 'Nissan', model: 'Sunny', year: '2025', trim: 'SV', color: 'فضي', purchase_price: 55000 },
+  { brand: 'Suzuki', model: 'Ciaz', year: '2025', trim: 'GL', color: 'أبيض', purchase_price: 52000 },
 ];
-const carIds = demoCars.map(c => insertCar.run(c.brand, c.model, c.year, c.color, c.purchase_price, ts0).lastInsertRowid);
+const carIds = demoCars.map(c => insertCar.run(c.brand, c.model, c.year, c.trim, c.color, c.purchase_price, ts0).lastInsertRowid);
 
 const demoCustomers = [
   {
@@ -38,7 +38,7 @@ const demoCustomers = [
     sale_date: iso(daysAgo(45)),
     payment_method: 'تمويل (إيجار تمويلي)',
     delivery_at: isoDT(daysAgo(44)),
-    car_type: 'Toyota Camry 2026 - أبيض',
+    car_type: 'Toyota Camry 2026 GLX - أبيض',
     car_inventory_id: carIds[0],
     vin: 'JTNBE46K003123456',
     estimara_number: 'EST-100234',
@@ -59,7 +59,7 @@ const demoCustomers = [
     sale_date: iso(daysAgo(3)),
     payment_method: 'نقدي',
     delivery_at: isoDT(daysAgo(2)),
-    car_type: 'Hyundai Tucson 2025 - أسود',
+    car_type: 'Hyundai Tucson 2025 Comfort - أسود',
     car_inventory_id: carIds[1],
     vin: 'KMHJ381AKLU234567',
     estimara_number: 'EST-100235',
@@ -80,7 +80,7 @@ const demoCustomers = [
     sale_date: iso(daysAgo(75)),
     payment_method: 'مرابحة',
     delivery_at: isoDT(daysAgo(74)),
-    car_type: 'Nissan Sunny 2025 - فضي',
+    car_type: 'Nissan Sunny 2025 SV - فضي',
     car_inventory_id: carIds[2],
     vin: '3N1AB7AP0KY345678',
     estimara_number: 'EST-100236',
@@ -101,7 +101,7 @@ const demoCustomers = [
     sale_date: iso(daysAgo(10)),
     payment_method: 'شركات',
     delivery_at: isoDT(daysAgo(9)),
-    car_type: 'Suzuki Ciaz 2025 - أبيض',
+    car_type: 'Suzuki Ciaz 2025 GL - أبيض',
     car_inventory_id: carIds[3],
     vin: 'MHYFN72A0KJ456789',
     estimara_number: 'EST-100237',

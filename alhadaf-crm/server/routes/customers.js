@@ -22,7 +22,7 @@ function getSalespeople() {
 }
 
 function getCarInventory() {
-  return db.prepare('SELECT * FROM car_inventory ORDER BY brand, model, year, color').all();
+  return db.prepare('SELECT * FROM car_inventory ORDER BY brand, model, year, trim, color').all();
 }
 
 // --- List with search / filter / sort / pagination ---

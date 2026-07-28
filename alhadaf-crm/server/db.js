@@ -15,11 +15,12 @@ CREATE TABLE IF NOT EXISTS car_inventory (
   brand TEXT NOT NULL,
   model TEXT NOT NULL,
   year TEXT NOT NULL,
+  trim TEXT NOT NULL DEFAULT '',
   color TEXT NOT NULL,
   purchase_price REAL,
   is_demo INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
-  UNIQUE(brand, model, year, color)
+  UNIQUE(brand, model, year, trim, color)
 );
 
 CREATE TABLE IF NOT EXISTS customers (
@@ -80,6 +81,36 @@ CREATE INDEX IF NOT EXISTS idx_contact_log_customer ON contact_log(customer_id);
 const customerCols = db.prepare("PRAGMA table_info(customers)").all().map(c => c.name);
 if (!customerCols.includes('car_inventory_id')) {
   db.exec('ALTER TABLE customers ADD COLUMN car_inventory_id INTEGER REFERENCES car_inventory(id) ON DELETE SET NULL');
+}
+
+// Migration for car_inventory created before "trim" (الفئة) existed. A plain
+// ALTER TABLE ADD COLUMN can't also widen the old UNIQUE(brand,model,year,color)
+// constraint to include trim, so the table is rebuilt in place — ids are kept
+// identical so customers.car_inventory_id references stay valid. Foreign keys
+// must be OFF for this: with them ON, DROP TABLE car_inventory_old fires the
+// ON DELETE SET NULL action for every row that referenced it (nulling all
+// those links) even though a same-named replacement table already exists —
+// this is standard SQLite table-surgery procedure, not a quirk to avoid.
+const carInventoryCols = db.prepare("PRAGMA table_info(car_inventory)").all().map(c => c.name);
+if (!carInventoryCols.includes('trim')) {
+  db.exec('PRAGMA foreign_keys = OFF');
+  db.exec('ALTER TABLE car_inventory RENAME TO car_inventory_old');
+  db.exec(`CREATE TABLE car_inventory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    brand TEXT NOT NULL,
+    model TEXT NOT NULL,
+    year TEXT NOT NULL,
+    trim TEXT NOT NULL DEFAULT '',
+    color TEXT NOT NULL,
+    purchase_price REAL,
+    is_demo INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    UNIQUE(brand, model, year, trim, color)
+  )`);
+  db.exec(`INSERT INTO car_inventory (id, brand, model, year, trim, color, purchase_price, is_demo, created_at)
+    SELECT id, brand, model, year, '', color, purchase_price, is_demo, created_at FROM car_inventory_old`);
+  db.exec('DROP TABLE car_inventory_old');
+  db.exec('PRAGMA foreign_keys = ON');
 }
 
 const sopExists = db.prepare('SELECT 1 FROM sop WHERE id = 1').get();
