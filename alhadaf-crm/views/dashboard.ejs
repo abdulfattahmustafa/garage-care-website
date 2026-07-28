@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><%- include('partials/head', { title: 'الرئيسية' }) %></head>
+<body>
+  <%- include('partials/nav', { active: 'dashboard' }) %>
+  <main class="page container">
+
+    <div class="section-title"><span class="bar"></span> لوحة المتابعة</div>
+
+    <div class="grid grid-3" style="margin-bottom:24px">
+      <div class="stat-card">
+        <div class="num"><%= salesThisMonth %></div>
+        <div class="label">مبيعات هذا الشهر</div>
+      </div>
+      <div class="stat-card">
+        <div class="num"><%= salesThisYear %></div>
+        <div class="label">مبيعات هذه السنة</div>
+      </div>
+      <div class="stat-card">
+        <div class="num"><%= totalCustomers %></div>
+        <div class="label">إجمالي العملاء المسجلين</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:24px; border-<%= (dueFollowups.length+overdueReports.length) ? 'right' : 'right' %>: 4px solid var(--gold)">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px">
+        <div class="section-title" style="margin:0"><span class="bar"></span> مستحقات اليوم</div>
+        <button class="btn btn-wa btn-sm" onclick="sendWaSummary()">📲 إرسال ملخص المستحقات للفريق</button>
+      </div>
+
+      <% if (!dueFollowups.length && !overdueReports.length && !dueSoonReports.length) { %>
+        <p class="muted">لا يوجد مستحقات حالياً ✅</p>
+      <% } %>
+
+      <% if (dueFollowups.length) { %>
+        <p><strong>📞 متابعة ما بعد البيع (مطلوبة الآن — مضى أكثر من 24 ساعة على التسليم):</strong></p>
+        <ul>
+          <% dueFollowups.forEach(c => { %>
+            <li><a href="/customers/<%= c.id %>"><%= c.customer_name %></a> — <%= c.car_type %>
+              <span class="badge badge-amber">بانتظار المتابعة</span></li>
+          <% }) %>
+        </ul>
+      <% } %>
+
+      <% if (overdueReports.length) { %>
+        <p><strong>🔴 تبليغ مبيعات متأخر عن الموعد النهائي:</strong></p>
+        <ul>
+          <% overdueReports.forEach(c => { %>
+            <li><a href="/customers/<%= c.id %>"><%= c.customer_name %></a> — استمارة <%= c.estimara_number %>
+              <span class="badge badge-red">متأخر منذ <%= fmtDate(reportDeadlineISO(c.sale_date)) %></span></li>
+          <% }) %>
+        </ul>
+      <% } %>
+
+      <% if (dueSoonReports.length) { %>
+        <p><strong>🟡 تبليغ مبيعات مستحق خلال أسبوع:</strong></p>
+        <ul>
+          <% dueSoonReports.forEach(c => { %>
+            <li><a href="/customers/<%= c.id %>"><%= c.customer_name %></a> — استمارة <%= c.estimara_number %>
+              <span class="badge badge-amber">الموعد <%= fmtDate(reportDeadlineISO(c.sale_date)) %></span></li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="section-title"><span class="bar"></span> توزيع طرق الدفع</div>
+        <canvas id="paymentChart" height="220"></canvas>
+      </div>
+      <div class="card">
+        <div class="section-title"><span class="bar"></span> أكثر الموديلات مبيعًا</div>
+        <canvas id="modelsChart" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="section-title"><span class="bar"></span> أداء البائعين</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>البائع</th><th>عدد المبيعات</th></tr></thead>
+          <tbody>
+            <% salesPerformance.forEach(s => { %>
+              <tr><td><%= s.salesperson %></td><td><%= s.c %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="/js/chart.umd.min.js"></script>
+  <script>
+    const goldPalette = ['#BD8E54', '#17181A', '#9C7854', '#D9B98A', '#7A6B68', '#232426'];
+
+    new Chart(document.getElementById('paymentChart'), {
+      type: 'doughnut',
+      data: {
+        labels: <%- JSON.stringify(paymentDist.map(p => p.payment_method)) %>,
+        datasets: [{ data: <%- JSON.stringify(paymentDist.map(p => p.c)) %>, backgroundColor: goldPalette }]
+      },
+      options: { plugins: { legend: { position: 'bottom', labels: { font: { family: 'Tajawal' } } } } }
+    });
+
+    new Chart(document.getElementById('modelsChart'), {
+      type: 'bar',
+      data: {
+        labels: <%- JSON.stringify(topModels.map(m => m.car_type)) %>,
+        datasets: [{ label: 'عدد المبيعات', data: <%- JSON.stringify(topModels.map(m => m.c)) %>, backgroundColor: '#BD8E54' }]
+      },
+      options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ticks: { precision: 0 } } } }
+    });
+
+    function sendWaSummary() {
+      const text = <%- JSON.stringify(waMessage) %>;
+      window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+    }
+  </script>
+</body>
+</html>

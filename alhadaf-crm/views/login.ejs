@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <%- include('partials/head', { title: 'تسجيل الدخول' }) %>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="logo-mark"></div>
+      <h1>معرض الهدف الأميز</h1>
+      <p class="sub">نظام إدارة علاقات العملاء</p>
+      <% if (error) { %>
+        <div class="flash flash-error"><%= error %></div>
+      <% } %>
+      <form method="POST" action="/login">
+        <div class="field" style="text-align:right">
+          <label>كلمة المرور</label>
+          <input type="password" name="password" required autofocus>
+        </div>
+        <button type="submit" class="btn btn-primary">دخول</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

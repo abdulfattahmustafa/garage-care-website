@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><%- include('../partials/head', { title: customer.customer_name }) %></head>
+<body>
+  <%- include('../partials/nav', { active: 'customers' }) %>
+  <main class="page container">
+
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:16px">
+      <div class="section-title" style="margin:0"><span class="bar"></span> <%= customer.customer_name %></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap">
+        <% const waText = encodeURIComponent(`مرحباً ${customer.customer_name}، معك معرض الهدف الأميز بخصوص سيارتك ${customer.car_type}. `); %>
+        <% if (customer.phone) { %>
+          <a class="btn btn-wa btn-sm" target="_blank" href="https://wa.me/966<%= customer.phone.replace(/^0/,'') %>?text=<%= waText %>">📲 واتساب</a>
+        <% } %>
+        <a class="btn btn-outline btn-sm" href="/customers/<%= customer.id %>/edit">✏️ تعديل</a>
+        <form method="POST" action="/customers/<%= customer.id %>/delete" onsubmit="return confirm('هل أنت متأكد من حذف بيانات هذا العميل نهائيًا؟');" style="display:inline">
+          <button type="submit" class="btn btn-danger btn-sm">🗑️ حذف</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="section-title" style="font-size:16px"><span class="bar"></span> بيانات العميل والسيارة</div>
+        <div class="detail-grid">
+          <div><div class="k">رقم الهوية</div><div class="v"><%= customer.national_id %></div></div>
+          <div><div class="k">الجوال</div><div class="v"><%= customer.phone || '—' %></div></div>
+          <div><div class="k">تاريخ البيع</div><div class="v"><%= customer.sale_date %></div></div>
+          <div><div class="k">وقت التسليم</div><div class="v"><%= customer.delivery_at ? customer.delivery_at.replace('T',' ') : '—' %></div></div>
+          <div><div class="k">نوع السيارة</div><div class="v"><%= customer.car_type %></div></div>
+          <div><div class="k">سعر البيع</div><div class="v"><%= customer.price ? Number(customer.price).toLocaleString('en-US') + ' ريال' : '—' %></div></div>
+          <div><div class="k">رقم الهيكل VIN</div><div class="v"><%= customer.vin %></div></div>
+          <div><div class="k">رقم الاستمارة</div><div class="v"><%= customer.estimara_number %></div></div>
+          <div><div class="k">طريقة الدفع</div><div class="v"><%= customer.payment_method %></div></div>
+          <div><div class="k">البائع المسؤول</div><div class="v"><%= customer.salesperson || '—' %></div></div>
+          <div><div class="k">الحالة</div><div class="v"><span class="badge badge-gray"><%= customer.status %></span></div></div>
+        </div>
+        <% if (customer.notes) { %>
+          <div class="divider"></div>
+          <div class="k">ملاحظات</div>
+          <div class="v" style="font-weight:400"><%= customer.notes %></div>
+        <% } %>
+      </div>
+
+      <div class="card">
+        <div class="section-title" style="font-size:16px"><span class="bar"></span> حالة المستحقات</div>
+
+        <p><strong>تبليغ المبيعات:</strong>
+          <% if (customer.reported) { %>
+            <span class="badge badge-green">تم التبليغ بتاريخ <%= customer.reported_at ? customer.reported_at.slice(0,10) : '' %></span>
+          <% } else if (isReportOverdue(customer)) { %>
+            <span class="badge badge-red">متأخر عن الموعد النهائي</span>
+          <% } else { %>
+            <span class="badge badge-amber">لم يُبلَّغ بعد</span>
+          <% } %>
+        </p>
+        <form method="POST" action="/customers/<%= customer.id %>/report">
+          <button type="submit" class="btn btn-outline btn-sm"><%= customer.reported ? 'التراجع عن التبليغ' : 'وضع علامة "تم التبليغ"' %></button>
+        </form>
+
+        <div class="divider"></div>
+
+        <p><strong>متابعة ما بعد البيع:</strong>
+          <% if (customer.followup_done) { %>
+            <span class="badge <%= customer.followup_result === 'راضٍ' ? 'badge-green' : 'badge-red' %>"><%= customer.followup_result || 'تمت المتابعة' %></span>
+          <% } else { %>
+            <span class="badge badge-amber">لم تتم بعد</span>
+          <% } %>
+        </p>
+        <% if (customer.followup_note) { %><p class="muted" style="font-size:13px"><%= customer.followup_note %></p><% } %>
+        <% if (!customer.followup_done) { %>
+        <form method="POST" action="/customers/<%= customer.id %>/followup">
+          <div class="form-row">
+            <div class="field">
+              <label>نتيجة المتابعة</label>
+              <select name="followup_result" required>
+                <option value="راضٍ">راضٍ</option>
+                <option value="غير راضٍ">غير راضٍ</option>
+              </select>
+            </div>
+          </div>
+          <div class="field"><label>ملاحظة</label><textarea name="followup_note" placeholder="تفاصيل المكالمة..."></textarea></div>
+          <button type="submit" class="btn btn-primary btn-sm">تسجيل نتيجة المتابعة</button>
+        </form>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="section-title" style="font-size:16px"><span class="bar"></span> سجل التواصل</div>
+
+      <form method="POST" action="/customers/<%= customer.id %>/contact" class="form-row" style="align-items:flex-end">
+        <div class="field" style="flex:0 0 160px">
+          <label>التاريخ</label>
+          <input type="date" name="contact_date" value="<%= new Date().toISOString().slice(0,10) %>" required>
+        </div>
+        <div class="field" style="flex:0 0 160px">
+          <label>نوع التواصل</label>
+          <select name="type">
+            <option value="مكالمة">مكالمة</option>
+            <option value="زيارة">زيارة</option>
+            <option value="رسالة">رسالة</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1 1 260px">
+          <label>الملاحظة</label>
+          <input type="text" name="note" placeholder="تفاصيل التواصل...">
+        </div>
+        <div class="field" style="flex:0 0 auto">
+          <button type="submit" class="btn btn-primary">إضافة</button>
+        </div>
+      </form>
+
+      <div class="divider"></div>
+
+      <% if (!contacts.length) { %>
+        <p class="muted">لا يوجد سجل تواصل بعد.</p>
+      <% } %>
+      <% contacts.forEach(l => { %>
+        <div class="log-item">
+          <div class="date"><%= l.contact_date %> <span class="badge badge-gray"><%= l.type || 'تواصل' %></span></div>
+          <% if (l.note) { %><div class="note"><%= l.note %></div><% } %>
+        </div>
+      <% }) %>
+    </div>
+
+  </main>
+</body>
+</html>

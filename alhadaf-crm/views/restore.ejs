@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><%- include('partials/head', { title: 'استعادة نسخة احتياطية' }) %></head>
+<body>
+  <%- include('partials/nav', { active: 'restore' }) %>
+  <main class="page container">
+    <div class="section-title"><span class="bar"></span> استعادة نسخة احتياطية</div>
+
+    <% if (done !== null) { %>
+      <div class="flash flash-success">تمت الاستعادة بنجاح — تم استرجاع <%= done %> عميل.</div>
+    <% } %>
+    <% if (error) { %>
+      <div class="flash flash-error"><%= error %></div>
+    <% } %>
+
+    <div class="card">
+      <p class="muted">اختر ملف النسخة الاحتياطية (JSON) الذي تم تنزيله سابقًا من زر "نسخة احتياطية". <strong>تنبيه: الاستعادة تستبدل كل البيانات الحالية في النظام بالكامل.</strong></p>
+      <div class="field">
+        <input type="file" id="backupFile" accept="application/json">
+      </div>
+      <button type="button" class="btn btn-primary" onclick="doRestore()">استعادة البيانات</button>
+    </div>
+  </main>
+  <script>
+    function doRestore() {
+      const input = document.getElementById('backupFile');
+      if (!input.files.length) { alert('اختر ملف النسخة الاحتياطية أولاً'); return; }
+      if (!confirm('هذا سيستبدل كل البيانات الحالية. متأكد؟')) return;
+      const reader = new FileReader();
+      reader.onload = async function() {
+        try {
+          const payload = JSON.parse(reader.result);
+          const res = await fetch('/data/restore', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const html = await res.text();
+          document.open(); document.write(html); document.close();
+        } catch (e) {
+          alert('ملف غير صالح: ' + e.message);
+        }
+      };
+      reader.readAsText(input.files[0]);
+    }
+  </script>
+</body>
+</html>

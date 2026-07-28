@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><%- include('partials/head', { title: 'إجراءات التعامل مع العميل' }) %></head>
+<body>
+  <%- include('partials/nav', { active: 'sop' }) %>
+  <main class="page container">
+    <div class="section-title"><span class="bar"></span> إجراءات التعامل مع العميل (SOP)</div>
+    <% if (saved) { %><div class="flash flash-success">تم الحفظ بنجاح ✅</div><% } %>
+    <form method="POST" action="/sop" class="card">
+      <div class="field">
+        <textarea name="content" rows="22" style="font-family:'Tajawal',monospace; line-height:1.8"><%= sop.content %></textarea>
+      </div>
+      <div class="actions-row">
+        <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+      </div>
+      <p class="muted" style="font-size:13px; margin-top:10px">آخر تحديث: <%= sop.updated_at.slice(0,10) %></p>
+    </form>
+  </main>
+</body>
+</html>
