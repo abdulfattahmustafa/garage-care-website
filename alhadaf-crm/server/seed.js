@@ -6,7 +6,8 @@ if (isClear) {
   const c1 = db.prepare('DELETE FROM customers WHERE is_demo = 1').run();
   const c2 = db.prepare('DELETE FROM salespeople WHERE is_demo = 1').run();
   const c3 = db.prepare('DELETE FROM car_inventory WHERE is_demo = 1').run();
-  console.log(`\n✅ تم حذف ${c1.changes} عميل تجريبي، ${c2.changes} بائع تجريبي، ${c3.changes} سيارة تجريبية من القائمة. البيانات الحقيقية لم تُمس.\n`);
+  const c4 = db.prepare('DELETE FROM prospects WHERE is_demo = 1').run();
+  console.log(`\n✅ تم حذف ${c1.changes} عميل تجريبي، ${c2.changes} بائع تجريبي، ${c3.changes} سيارة تجريبية، ${c4.changes} عميل محتمل تجريبي. البيانات الحقيقية لم تُمس.\n`);
   process.exit(0);
 }
 
@@ -120,14 +121,14 @@ const demoCustomers = [
 
 const ts = now.toISOString();
 const insert = db.prepare(`INSERT INTO customers
-  (customer_name, national_id, sale_date, payment_method, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, reported_at, followup_done, followup_result, followup_note, followup_at, is_demo, created_at, updated_at)
-  VALUES (@customer_name, @national_id, @sale_date, @payment_method, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, @reported, @reported_at, @followup_done, @followup_result, @followup_note, @followup_at, 1, @created_at, @updated_at)`);
+  (customer_name, national_id, sale_date, payment_method, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, reported_at, followup_done, followup_result, followup_note, followup_at, created_by, updated_by, is_demo, created_at, updated_at)
+  VALUES (@customer_name, @national_id, @sale_date, @payment_method, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, @reported, @reported_at, @followup_done, @followup_result, @followup_note, @followup_at, @created_by, @updated_by, 1, @created_at, @updated_at)`);
 
 const insertLog = db.prepare(`INSERT INTO contact_log (customer_id, contact_date, type, note, created_at) VALUES (?,?,?,?,?)`);
 
 const ids = [];
 for (const c of demoCustomers) {
-  const info = insert.run({ ...c, reported_at: c.reported ? ts : null, created_at: ts, updated_at: ts });
+  const info = insert.run({ ...c, reported_at: c.reported ? ts : null, created_by: 'بيانات تجريبية', updated_by: 'بيانات تجريبية', created_at: ts, updated_at: ts });
   ids.push(info.lastInsertRowid);
 }
 
@@ -138,5 +139,21 @@ insertLog.run(ids[3], iso(daysAgo(5)), 'رسالة', 'تم إرسال رسالة
 const insertSalesperson = db.prepare('INSERT OR IGNORE INTO salespeople (name, is_demo, created_at) VALUES (?, 1, ?)');
 ['محمد العتيبي', 'نورة الدوسري'].forEach(name => insertSalesperson.run(name, ts));
 
-console.log(`\n✅ تمت إضافة ${demoCustomers.length} عملاء تجريبيين + سجل تواصل تجريبي.`);
+const insertProspect = db.prepare(`INSERT INTO prospects
+  (name, phone, source, interested_car, stage, salesperson, notes, is_demo, created_by, created_at, updated_at)
+  VALUES (?,?,?,?,?,?,?,1,?,?,?)`);
+const insertProspectLog = db.prepare(`INSERT INTO prospect_log (prospect_id, contact_date, type, note, created_at) VALUES (?,?,?,?,?)`);
+
+const demoProspects = [
+  { name: 'فيصل عبدالعزيز المطيري', phone: '0559991111', source: 'إنستقرام', interested_car: 'Toyota Corolla', stage: 'زار المعرض', salesperson: 'محمد العتيبي', notes: 'يقارن بين كورولا وسيفيك' },
+  { name: 'ريم خالد العنزي', phone: '0559992222', source: 'توصية من عميل', interested_car: 'Hyundai Tucson 2025', stage: 'تجربة قيادة', salesperson: 'نورة الدوسري', notes: 'جربت السيارة، بتراجع الأهل وترد' },
+  { name: 'سلطان ناصر الغامدي', phone: '0559993333', source: 'اتصال هاتفي', interested_car: 'Suzuki Ciaz', stage: 'جديد', salesperson: '', notes: '' },
+];
+const prospectIds = demoProspects.map(p => insertProspect.run(
+  p.name, p.phone, p.source, p.interested_car, p.stage, p.salesperson, p.notes, 'بيانات تجريبية', ts, ts
+).lastInsertRowid);
+insertProspectLog.run(prospectIds[0], iso(daysAgo(2)), 'زيارة', 'زار المعرض وشاف كورولا 2026', ts);
+insertProspectLog.run(prospectIds[1], iso(daysAgo(1)), 'زيارة', 'جربت السيارة وعجبتها، بترجع الأسبوع الجاي', ts);
+
+console.log(`\n✅ تمت إضافة ${demoCustomers.length} عملاء تجريبيين، ${demoProspects.length} عملاء محتملين تجريبيين، + سجل تواصل تجريبي.`);
 console.log('   لحذف البيانات التجريبية قبل إدخال بياناتك الحقيقية شغّل: npm run clear-demo\n');

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><%- include('../partials/head', { title: 'العملاء المحتملون' }) %></head>
+<body>
+  <%- include('../partials/nav', { active: 'prospects' }) %>
+  <main class="page container">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px">
+      <div class="section-title" style="margin:0"><span class="bar"></span> العملاء المحتملون (<%= total %>)</div>
+      <a href="/prospects/new" class="btn btn-primary">+ إضافة عميل محتمل</a>
+    </div>
+
+    <form class="filters" method="GET" action="/prospects">
+      <input type="text" name="q" placeholder="بحث بالاسم، الجوال، السيارة..." value="<%= q %>">
+      <select name="stage">
+        <option value="">كل المراحل</option>
+        <% STAGES.forEach(s => { %>
+          <option value="<%= s %>" <%= stage===s?'selected':'' %>><%= s %></option>
+        <% }) %>
+      </select>
+      <select name="salesperson">
+        <option value="">كل البائعين</option>
+        <% salespeople.forEach(s => { %>
+          <option value="<%= s %>" <%= salesperson===s?'selected':'' %>><%= s %></option>
+        <% }) %>
+      </select>
+      <button type="submit" class="btn btn-primary btn-sm">بحث</button>
+      <a href="/prospects" class="btn btn-outline btn-sm">تفريغ</a>
+    </form>
+
+    <% if (!rows.length) { %>
+      <div class="empty-state">لا يوجد عملاء محتملين مطابقين لبحثك.</div>
+    <% } else { %>
+    <div class="table-wrap card" style="padding:0">
+      <table>
+        <thead>
+          <tr><th>الاسم</th><th>الجوال</th><th>السيارة المهتم فيها</th><th>البائع</th><th>المرحلة</th><th>آخر تحديث</th></tr>
+        </thead>
+        <tbody>
+          <% rows.forEach(p => { %>
+            <tr onclick="location.href='/prospects/<%= p.id %>'" style="cursor:pointer">
+              <td><%= p.name %></td>
+              <td><%= p.phone || '—' %></td>
+              <td><%= p.interested_car || '—' %></td>
+              <td><%= p.salesperson || '—' %></td>
+              <td><span class="badge <%= p.stage === 'تحوّل لعميل' ? 'badge-green' : (p.stage === 'لم يتم البيع' ? 'badge-red' : 'badge-gray') %>"><%= p.stage %></span></td>
+              <td><%= p.updated_at.slice(0,10) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <% if (totalPages > 1) { %>
+      <div class="pagination">
+        <% for (let p = 1; p <= totalPages; p++) { %>
+          <% const qs = `q=${encodeURIComponent(q)}&stage=${encodeURIComponent(stage)}&salesperson=${encodeURIComponent(salesperson)}&page=${p}`; %>
+          <% if (p === page) { %>
+            <span class="current"><%= p %></span>
+          <% } else { %>
+            <a href="/prospects?<%= qs %>"><%= p %></a>
+          <% } %>
+        <% } %>
+      </div>
+    <% } %>
+    <% } %>
+  </main>
+</body>
+</html>

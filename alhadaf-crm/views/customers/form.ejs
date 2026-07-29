@@ -7,6 +7,10 @@
     <div class="section-title"><span class="bar"></span> <%= customer && customer.id ? 'تعديل بيانات عملية البيع' : 'إضافة عملية بيع جديدة' %></div>
 
     <form class="card" method="POST" action="<%= customer && customer.id ? '/customers/' + customer.id : '/customers' %>">
+      <% if (customer && customer.from_prospect_id) { %>
+        <input type="hidden" name="from_prospect_id" value="<%= customer.from_prospect_id %>">
+        <div class="flash flash-success" style="margin-bottom:16px">تعبئة تلقائية من عميل محتمل — أكمل باقي بيانات البيع.</div>
+      <% } %>
       <div class="form-row">
         <div class="field">
           <label>اسم العميل *</label>

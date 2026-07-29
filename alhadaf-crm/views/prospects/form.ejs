@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><%- include('../partials/head', { title: prospect && prospect.id ? 'تعديل عميل محتمل' : 'إضافة عميل محتمل' }) %></head>
+<body>
+  <%- include('../partials/nav', { active: 'prospects' }) %>
+  <main class="page container">
+    <div class="section-title"><span class="bar"></span> <%= prospect && prospect.id ? 'تعديل عميل محتمل' : 'إضافة عميل محتمل جديد' %></div>
+
+    <form class="card" method="POST" action="<%= prospect && prospect.id ? '/prospects/' + prospect.id : '/prospects' %>">
+      <div class="form-row">
+        <div class="field">
+          <label>الاسم *</label>
+          <input type="text" name="name" value="<%= prospect ? prospect.name || '' : '' %>" class="<%= errors.name ? 'invalid' : '' %>" required>
+          <% if (errors.name) { %><div class="err"><%= errors.name %></div><% } %>
+        </div>
+        <div class="field">
+          <label>رقم الجوال (05xxxxxxxx)</label>
+          <input type="text" name="phone" inputmode="numeric" maxlength="10" value="<%= prospect ? prospect.phone || '' : '' %>" class="<%= errors.phone ? 'invalid' : '' %>">
+          <% if (errors.phone) { %><div class="err"><%= errors.phone %></div><% } %>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>السيارة المهتم فيها</label>
+          <input type="text" name="interested_car" placeholder="مثال: Toyota Camry" value="<%= prospect ? prospect.interested_car || '' : '' %>">
+        </div>
+        <div class="field">
+          <label>كيف عرف بالمعرض؟</label>
+          <select name="source">
+            <option value="">غير محدد</option>
+            <% SOURCES.forEach(s => { %>
+              <option value="<%= s %>" <%= prospect && prospect.source===s ? 'selected':'' %>><%= s %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>البائع المسؤول</label>
+          <select name="salesperson">
+            <option value="">غير محدد</option>
+            <% salespeople.forEach(s => { %>
+              <option value="<%= s %>" <%= prospect && prospect.salesperson===s ? 'selected':'' %>><%= s %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="field">
+          <label>المرحلة</label>
+          <select name="stage">
+            <% STAGES.forEach(s => { %>
+              <option value="<%= s %>" <%= prospect && prospect.stage===s ? 'selected':'' %>><%= s %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>ملاحظات</label>
+        <textarea name="notes"><%= prospect ? prospect.notes || '' : '' %></textarea>
+      </div>
+
+      <div class="actions-row">
+        <button type="submit" class="btn btn-primary"><%= prospect && prospect.id ? 'حفظ التعديلات' : 'حفظ' %></button>
+        <a href="<%= prospect && prospect.id ? '/prospects/' + prospect.id : '/prospects' %>" class="btn btn-outline">إلغاء</a>
+      </div>
+    </form>
+  </main>
+</body>
+</html>

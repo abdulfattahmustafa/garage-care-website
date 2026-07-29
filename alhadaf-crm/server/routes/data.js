@@ -181,7 +181,10 @@ router.get('/backup.json', (req, res) => {
   const sop = db.prepare('SELECT * FROM sop').all();
   const salespeople = db.prepare('SELECT * FROM salespeople').all();
   const car_inventory = db.prepare('SELECT * FROM car_inventory').all();
-  const payload = { exported_at: new Date().toISOString(), customers, contact_log, sop, salespeople, car_inventory };
+  const prospects = db.prepare('SELECT * FROM prospects').all();
+  const prospect_log = db.prepare('SELECT * FROM prospect_log').all();
+  const users = db.prepare('SELECT * FROM users').all();
+  const payload = { exported_at: new Date().toISOString(), customers, contact_log, sop, salespeople, car_inventory, prospects, prospect_log, users };
 
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="alhadaf-crm-backup-${new Date().toISOString().slice(0,10)}.json"`);
@@ -201,10 +204,19 @@ router.post('/restore', (req, res) => {
 
     db.exec('BEGIN');
     try {
+      // Attachments aren't part of the JSON payload (they're files on disk,
+      // not practical to inline as base64) — capture the current rows so
+      // they can be re-linked after customers are re-inserted with the same
+      // ids, instead of being silently lost to the CASCADE delete below.
+      const existingAttachments = db.prepare('SELECT * FROM attachments').all();
+
+      db.prepare('DELETE FROM prospect_log').run();
       db.prepare('DELETE FROM contact_log').run();
-      db.prepare('DELETE FROM customers').run();
+      db.prepare('DELETE FROM prospects').run();
+      db.prepare('DELETE FROM customers').run(); // cascades attachments rows
       db.prepare('DELETE FROM car_inventory').run();
       db.prepare('DELETE FROM salespeople').run();
+      db.prepare('DELETE FROM users').run();
 
       if (Array.isArray(payload.car_inventory)) {
         const insCar = db.prepare(`INSERT INTO car_inventory (id, brand, model, year, trim, color, purchase_price, is_demo, created_at) VALUES (@id, @brand, @model, @year, @trim, @color, @purchase_price, @is_demo, @created_at)`);
@@ -216,14 +228,39 @@ router.post('/restore', (req, res) => {
         for (const s of payload.salespeople) insSalesperson.run(s);
       }
 
+      if (Array.isArray(payload.users)) {
+        const insUser = db.prepare(`INSERT INTO users (id, name, username, password_hash, is_active, created_at) VALUES (@id, @name, @username, @password_hash, @is_active, @created_at)`);
+        for (const u of payload.users) insUser.run(u);
+      }
+
       const insCustomer = db.prepare(`INSERT INTO customers
-        (id, customer_name, national_id, sale_date, payment_method, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, reported_at, followup_done, followup_result, followup_note, followup_at, is_demo, created_at, updated_at)
-        VALUES (@id, @customer_name, @national_id, @sale_date, @payment_method, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, @reported, @reported_at, @followup_done, @followup_result, @followup_note, @followup_at, @is_demo, @created_at, @updated_at)`);
+        (id, customer_name, national_id, sale_date, payment_method, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, reported_at, followup_done, followup_result, followup_note, followup_at, created_by, updated_by, is_demo, created_at, updated_at)
+        VALUES (@id, @customer_name, @national_id, @sale_date, @payment_method, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, @reported, @reported_at, @followup_done, @followup_result, @followup_note, @followup_at, @created_by, @updated_by, @is_demo, @created_at, @updated_at)`);
       for (const c of payload.customers) insCustomer.run(c);
 
       if (Array.isArray(payload.contact_log)) {
         const insContact = db.prepare(`INSERT INTO contact_log (id, customer_id, contact_date, type, note, created_at) VALUES (@id, @customer_id, @contact_date, @type, @note, @created_at)`);
         for (const l of payload.contact_log) insContact.run(l);
+      }
+
+      if (Array.isArray(payload.prospects)) {
+        const insProspect = db.prepare(`INSERT INTO prospects
+          (id, name, phone, source, interested_car, stage, salesperson, notes, converted_customer_id, is_demo, created_by, created_at, updated_at)
+          VALUES (@id, @name, @phone, @source, @interested_car, @stage, @salesperson, @notes, @converted_customer_id, @is_demo, @created_by, @created_at, @updated_at)`);
+        for (const p of payload.prospects) insProspect.run(p);
+      }
+
+      if (Array.isArray(payload.prospect_log)) {
+        const insProspectLog = db.prepare(`INSERT INTO prospect_log (id, prospect_id, contact_date, type, note, created_at) VALUES (@id, @prospect_id, @contact_date, @type, @note, @created_at)`);
+        for (const l of payload.prospect_log) insProspectLog.run(l);
+      }
+
+      const restoredCustomerIds = new Set(payload.customers.map(c => c.id));
+      const insAttachment = db.prepare(`INSERT INTO attachments
+        (id, customer_id, label, original_name, stored_name, mime_type, size, uploaded_by, created_at)
+        VALUES (@id, @customer_id, @label, @original_name, @stored_name, @mime_type, @size, @uploaded_by, @created_at)`);
+      for (const a of existingAttachments) {
+        if (restoredCustomerIds.has(a.customer_id)) insAttachment.run(a);
       }
 
       if (Array.isArray(payload.sop) && payload.sop[0]) {

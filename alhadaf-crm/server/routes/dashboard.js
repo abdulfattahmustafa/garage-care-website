@@ -20,6 +20,10 @@ router.get('/', (req, res) => {
     SELECT COALESCE(NULLIF(salesperson,''),'غير محدد') salesperson, COUNT(*) c
     FROM customers GROUP BY salesperson ORDER BY c DESC LIMIT 10`).all();
 
+  const totalProspects = db.prepare(`SELECT COUNT(*) c FROM prospects`).get().c;
+  const activeProspects = db.prepare(`SELECT COUNT(*) c FROM prospects WHERE stage NOT IN ('تحوّل لعميل', 'لم يتم البيع')`).get().c;
+  const prospectsByStage = db.prepare(`SELECT stage, COUNT(*) c FROM prospects GROUP BY stage`).all();
+
   const all = db.prepare(`SELECT * FROM customers`).all();
 
   const dueFollowups = all.filter(c => isFollowupDue(c, now));
@@ -53,6 +57,7 @@ router.get('/', (req, res) => {
     salesThisMonth, salesThisYear, totalCustomers,
     paymentDist, topModels, salesPerformance,
     dueFollowups, overdueReports, dueSoonReports,
+    totalProspects, activeProspects, prospectsByStage,
     waMessage,
     reportDeadlineISO, fmtDate,
   });

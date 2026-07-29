@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><%- include('partials/head', { title: 'المستخدمون' }) %></head>
+<body>
+  <%- include('partials/nav', { active: 'users' }) %>
+  <main class="page container">
+    <div class="section-title"><span class="bar"></span> المستخدمون</div>
+
+    <div class="card">
+      <p class="muted">كل مستخدم يدخل بحسابه الخاص، عشان تعرف مين أضاف أو عدّل أي سجل (تقدر تشوف هذا من صفحة "سجل النشاط").</p>
+
+      <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
+
+      <form method="POST" action="/users" class="form-row" style="align-items:flex-end; margin-top:14px">
+        <div class="field" style="flex:1 1 160px">
+          <label>الاسم</label>
+          <input type="text" name="name" placeholder="مثال: أحمد سالم" required>
+        </div>
+        <div class="field" style="flex:1 1 140px">
+          <label>اسم المستخدم (إنجليزي)</label>
+          <input type="text" name="username" placeholder="مثال: ahmad" required>
+        </div>
+        <div class="field" style="flex:1 1 140px">
+          <label>كلمة المرور</label>
+          <input type="password" name="password" placeholder="4 خانات على الأقل" required>
+        </div>
+        <div class="field" style="flex:0 0 auto">
+          <button type="submit" class="btn btn-primary">+ إضافة مستخدم</button>
+        </div>
+      </form>
+
+      <div class="divider"></div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الحالة</th><th></th></tr></thead>
+          <tbody>
+            <% users.forEach(u => { %>
+              <tr>
+                <td><%= u.name %><% if (String(u.id) === String(currentUserId)) { %> <span class="badge badge-gray">أنت</span><% } %></td>
+                <td><%= u.username %></td>
+                <td><span class="badge <%= u.is_active ? 'badge-green' : 'badge-red' %>"><%= u.is_active ? 'فعّال' : 'معطّل' %></span></td>
+                <td style="display:flex; gap:6px; flex-wrap:wrap">
+                  <% if (String(u.id) !== String(currentUserId)) { %>
+                    <form method="POST" action="/users/<%= u.id %>/toggle">
+                      <button type="submit" class="btn btn-outline btn-sm"><%= u.is_active ? 'تعطيل' : 'تفعيل' %></button>
+                    </form>
+                  <% } %>
+                  <form method="POST" action="/users/<%= u.id %>/reset-password" onsubmit="return setPass(event, <%= u.id %>);">
+                    <button type="submit" class="btn btn-outline btn-sm">كلمة مرور جديدة</button>
+                    <input type="hidden" name="password" class="pw-input">
+                  </form>
+                  <% if (String(u.id) !== String(currentUserId)) { %>
+                    <form method="POST" action="/users/<%= u.id %>/delete" onsubmit="return confirm('حذف حساب «<%= u.name %>»؟');">
+                      <button type="submit" class="btn btn-danger btn-sm">حذف</button>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+  <script>
+    function setPass(ev, id) {
+      const p = prompt('اكتب كلمة المرور الجديدة (4 خانات على الأقل):');
+      if (!p) { ev.preventDefault(); return false; }
+      ev.target.querySelector('.pw-input').value = p;
+      return true;
+    }
+  </script>
+</body>
+</html>

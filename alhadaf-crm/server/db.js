@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS customers (
   followup_result TEXT,
   followup_note TEXT,
   followup_at TEXT,
+  created_by TEXT,
+  updated_by TEXT,
   is_demo INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -76,8 +78,67 @@ CREATE TABLE IF NOT EXISTS salespeople (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS activity_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_name TEXT,
+  action TEXT NOT NULL,
+  entity_type TEXT,
+  entity_id INTEGER,
+  details TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS prospects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  phone TEXT,
+  source TEXT,
+  interested_car TEXT,
+  stage TEXT NOT NULL DEFAULT 'جديد',
+  salesperson TEXT,
+  notes TEXT,
+  converted_customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+  is_demo INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS prospect_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  prospect_id INTEGER NOT NULL REFERENCES prospects(id) ON DELETE CASCADE,
+  contact_date TEXT NOT NULL,
+  type TEXT,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS attachments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  label TEXT,
+  original_name TEXT NOT NULL,
+  stored_name TEXT NOT NULL UNIQUE,
+  mime_type TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  uploaded_by TEXT,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_customers_sale_date ON customers(sale_date);
 CREATE INDEX IF NOT EXISTS idx_contact_log_customer ON contact_log(customer_id);
+CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_prospect_log_prospect ON prospect_log(prospect_id);
+CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
 `);
 
 // Migration for installs created before car_inventory existed: CREATE TABLE
@@ -85,6 +146,12 @@ CREATE INDEX IF NOT EXISTS idx_contact_log_customer ON contact_log(customer_id);
 const customerCols = db.prepare("PRAGMA table_info(customers)").all().map(c => c.name);
 if (!customerCols.includes('car_inventory_id')) {
   db.exec('ALTER TABLE customers ADD COLUMN car_inventory_id INTEGER REFERENCES car_inventory(id) ON DELETE SET NULL');
+}
+if (!customerCols.includes('created_by')) {
+  db.exec('ALTER TABLE customers ADD COLUMN created_by TEXT');
+}
+if (!customerCols.includes('updated_by')) {
+  db.exec('ALTER TABLE customers ADD COLUMN updated_by TEXT');
 }
 
 // Migration for car_inventory created before "trim" (الفئة) existed. A plain
@@ -138,3 +205,4 @@ if (!sopExists) {
 }
 
 module.exports = db;
+module.exports.dataDir = dataDir;

@@ -5,14 +5,22 @@
       <a href="/" class="<%= active === 'dashboard' ? 'active' : '' %>">الرئيسية</a>
       <a href="/customers" class="<%= active === 'customers' ? 'active' : '' %>">العملاء</a>
       <a href="/customers/new" class="<%= active === 'new' ? 'active' : '' %>">إضافة عملية بيع</a>
+      <a href="/prospects" class="<%= active === 'prospects' ? 'active' : '' %>">العملاء المحتملون</a>
       <a href="/sop" class="<%= active === 'sop' ? 'active' : '' %>">إجراءات التعامل</a>
       <a href="/cars" class="<%= active === 'cars' ? 'active' : '' %>">قائمة السيارات</a>
+      <a href="/users" class="<%= active === 'users' ? 'active' : '' %>">المستخدمون</a>
+      <a href="/activity" class="<%= active === 'activity' ? 'active' : '' %>">سجل النشاط</a>
       <a href="/settings" class="<%= active === 'settings' ? 'active' : '' %>">الإعدادات</a>
       <a href="/data/export.xlsx" class="<%= active === 'backup' ? 'active' : '' %>">نسخة احتياطية (Excel)</a>
       <a href="/data/restore" class="<%= active === 'restore' ? 'active' : '' %>">استعادة</a>
     </nav>
-    <form method="POST" action="/logout" style="margin:10px 0">
-      <button type="submit" class="nav-logout">خروج</button>
-    </form>
+    <div style="display:flex; align-items:center; gap:10px">
+      <% if (typeof currentUserName !== 'undefined' && currentUserName) { %>
+        <span class="muted" style="font-size:13px; color:#cfc8bf">مرحبًا، <%= currentUserName %></span>
+      <% } %>
+      <form method="POST" action="/logout" style="margin:10px 0">
+        <button type="submit" class="nav-logout">خروج</button>
+      </form>
+    </div>
   </div>
 </header>

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><%- include('../partials/head', { title: prospect.name }) %></head>
+<body>
+  <%- include('../partials/nav', { active: 'prospects' }) %>
+  <main class="page container">
+
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:16px">
+      <div class="section-title" style="margin:0"><span class="bar"></span> <%= prospect.name %></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap">
+        <% if (prospect.phone) { %>
+          <a class="btn btn-wa btn-sm" target="_blank" href="https://wa.me/966<%= prospect.phone.replace(/^0/,'') %>">📲 واتساب</a>
+        <% } %>
+        <% if (prospect.stage !== 'تحوّل لعميل') { %>
+          <a class="btn btn-primary btn-sm" href="/customers/new?from_prospect=<%= prospect.id %>">✅ تحويل لعميل (تسجيل بيع)</a>
+        <% } %>
+        <a class="btn btn-outline btn-sm" href="/prospects/<%= prospect.id %>/edit">✏️ تعديل</a>
+        <form method="POST" action="/prospects/<%= prospect.id %>/delete" onsubmit="return confirm('حذف بيانات هذا العميل المحتمل نهائيًا؟');" style="display:inline">
+          <button type="submit" class="btn btn-danger btn-sm">🗑️ حذف</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="detail-grid">
+        <div><div class="k">الجوال</div><div class="v"><%= prospect.phone || '—' %></div></div>
+        <div><div class="k">المرحلة</div><div class="v"><span class="badge <%= prospect.stage === 'تحوّل لعميل' ? 'badge-green' : (prospect.stage === 'لم يتم البيع' ? 'badge-red' : 'badge-gray') %>"><%= prospect.stage %></span></div></div>
+        <div><div class="k">السيارة المهتم فيها</div><div class="v"><%= prospect.interested_car || '—' %></div></div>
+        <div><div class="k">كيف عرف بالمعرض</div><div class="v"><%= prospect.source || '—' %></div></div>
+        <div><div class="k">البائع المسؤول</div><div class="v"><%= prospect.salesperson || '—' %></div></div>
+        <div><div class="k">آخر تحديث</div><div class="v"><%= prospect.updated_at.slice(0,10) %></div></div>
+      </div>
+      <% if (prospect.notes) { %>
+        <div class="divider"></div>
+        <div class="k">ملاحظات</div>
+        <div class="v" style="font-weight:400"><%= prospect.notes %></div>
+      <% } %>
+      <% if (prospect.converted_customer_id) { %>
+        <div class="divider"></div>
+        <a href="/customers/<%= prospect.converted_customer_id %>" class="btn btn-outline btn-sm">عرض عملية البيع المرتبطة →</a>
+      <% } %>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="section-title" style="font-size:16px"><span class="bar"></span> سجل التواصل</div>
+
+      <form method="POST" action="/prospects/<%= prospect.id %>/contact" class="form-row" style="align-items:flex-end">
+        <div class="field" style="flex:0 0 160px">
+          <label>التاريخ</label>
+          <input type="date" name="contact_date" value="<%= new Date().toISOString().slice(0,10) %>" required>
+        </div>
+        <div class="field" style="flex:0 0 160px">
+          <label>نوع التواصل</label>
+          <select name="type">
+            <option value="مكالمة">مكالمة</option>
+            <option value="زيارة">زيارة</option>
+            <option value="رسالة">رسالة</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1 1 260px">
+          <label>الملاحظة</label>
+          <input type="text" name="note" placeholder="تفاصيل التواصل...">
+        </div>
+        <div class="field" style="flex:0 0 auto">
+          <button type="submit" class="btn btn-primary">إضافة</button>
+        </div>
+      </form>
+
+      <div class="divider"></div>
+
+      <% if (!logs.length) { %>
+        <p class="muted">لا يوجد سجل تواصل بعد.</p>
+      <% } %>
+      <% logs.forEach(l => { %>
+        <div class="log-item">
+          <div class="date"><%= l.contact_date %> <span class="badge badge-gray"><%= l.type || 'تواصل' %></span></div>
+          <% if (l.note) { %><div class="note"><%= l.note %></div><% } %>
+        </div>
+      <% }) %>
+    </div>
+
+  </main>
+</body>
+</html>

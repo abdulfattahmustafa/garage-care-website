@@ -5,6 +5,8 @@
   <%- include('../partials/nav', { active: 'customers' }) %>
   <main class="page container">
 
+    <% if (uploadError) { %><div class="flash flash-error"><%= uploadError %></div><% } %>
+
     <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:16px">
       <div class="section-title" style="margin:0"><span class="bar"></span> <%= customer.customer_name %></div>
       <div style="display:flex; gap:8px; flex-wrap:wrap">
@@ -40,6 +42,13 @@
           <div class="k">ملاحظات</div>
           <div class="v" style="font-weight:400"><%= customer.notes %></div>
         <% } %>
+        <div class="divider"></div>
+        <p class="muted" style="font-size:12px">
+          أضافه: <%= customer.created_by || '—' %> · <%= customer.created_at.slice(0,10) %>
+          <% if (customer.updated_by && customer.updated_at !== customer.created_at) { %>
+            · آخر تعديل: <%= customer.updated_by %> · <%= customer.updated_at.slice(0,10) %>
+          <% } %>
+        </p>
       </div>
 
       <div class="card">
@@ -120,6 +129,50 @@
         <div class="log-item">
           <div class="date"><%= l.contact_date %> <span class="badge badge-gray"><%= l.type || 'تواصل' %></span></div>
           <% if (l.note) { %><div class="note"><%= l.note %></div><% } %>
+        </div>
+      <% }) %>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="section-title" style="font-size:16px"><span class="bar"></span> المرفقات</div>
+
+      <form method="POST" action="/customers/<%= customer.id %>/attachments" enctype="multipart/form-data" class="form-row" style="align-items:flex-end">
+        <div class="field" style="flex:1 1 160px">
+          <label>نوع المستند</label>
+          <select name="label">
+            <option value="صورة الهوية">صورة الهوية</option>
+            <option value="العقد">العقد</option>
+            <option value="شهادة الضمان">شهادة الضمان</option>
+            <option value="أخرى">أخرى</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1 1 220px">
+          <label>الملف (صورة أو PDF، أقل من 10 ميقابايت)</label>
+          <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf" required>
+        </div>
+        <div class="field" style="flex:0 0 auto">
+          <button type="submit" class="btn btn-primary">رفع</button>
+        </div>
+      </form>
+
+      <div class="divider"></div>
+
+      <% if (!attachments.length) { %>
+        <p class="muted">لا يوجد مرفقات بعد.</p>
+      <% } %>
+      <% attachments.forEach(a => { %>
+        <div class="log-item" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px">
+          <div>
+            <span class="badge badge-gray"><%= a.label %></span>
+            <span style="margin-right:8px"><%= a.original_name %></span>
+            <span class="muted" style="font-size:12px">— <%= (a.size/1024).toFixed(0) %> كيلوبايت · <%= a.uploaded_by || '—' %> · <%= a.created_at.slice(0,10) %></span>
+          </div>
+          <div style="display:flex; gap:6px">
+            <a class="btn btn-outline btn-sm" href="/customers/<%= customer.id %>/attachments/<%= a.id %>/download">⬇️ تنزيل</a>
+            <form method="POST" action="/customers/<%= customer.id %>/attachments/<%= a.id %>/delete" onsubmit="return confirm('حذف هذا المرفق؟');">
+              <button type="submit" class="btn btn-danger btn-sm">حذف</button>
+            </form>
+          </div>
         </div>
       <% }) %>
     </div>

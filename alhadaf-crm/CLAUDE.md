@@ -7,7 +7,9 @@
 - **Node.js + Express**: خادم بسيط، أمر تشغيل واحد (`npm start`)، بدون خطوات بناء (build) معقدة — مناسب لمستخدم غير مبرمج.
 - **node:sqlite (المدمجة في Node.js، وليست `better-sqlite3`)**: قاعدة بيانات حقيقية بملف واحد (`data/alhadaf.db`)، متزامنة (synchronous API يبسّط الكود). **تجنّبنا `better-sqlite3` عمدًا**: أول نسخة استخدمتها فشلت عند المالك (نسخة Node.js حديثة جدًا 24.18.0 على ويندوز بدون prebuilt binaries، فاضطر npm للبناء من المصدر عبر node-gyp، وفشل لعدم وجود Python/Visual Studio Build Tools). التبديل لـ `node:sqlite` (متوفرة افتراضيًا من Node 22.5+ بدون أي flag) ألغى الحاجة لأي تجميع أصلي (native compile) نهائيًا. الفرق الوحيد في الكود: `db.exec('PRAGMA ...')` بدل `db.pragma(...)`, والمعاملات (transactions) تُكتب يدويًا بـ `BEGIN/COMMIT/ROLLBACK` بدل `db.transaction()`.
 - **EJS**: قوالب HTML بسيطة تُصيَّر من السيرفر (server-rendered)، تدعم RTL والعربي بدون تعقيد أدوات بناء frontend حديثة.
-- **express-session**: جلسة بسيطة بكوكي، تكفي لحماية بكلمة مرور واحدة (لا يوجد نظام مستخدمين متعدد).
+- **express-session**: جلسة بكوكي، تخزّن `userId`/`userName` بعد نظام الحسابات المتعددة (كانت `authed: true` بس بمرحلة كلمة المرور المشتركة الأولى).
+- **bcryptjs** (وليس `bcrypt`): تشفير كلمات المرور، نسخة JS بحتة بدون أي تجميع أصلي — نفس فلسفة تفادي `better-sqlite3` بالأسفل.
+- **multer v2** (وليس v1، فيها ثغرات معروفة): رفع المرفقات (`server/lib/upload.js`) بقائمة أنواع مسموحة (JPG/PNG/WEBP/PDF فقط) وأسماء ملفات عشوائية على القرص.
 - **json2csv**: تصدير Excel/CSV بدون مكتبات ثقيلة.
 - **Chart.js** (مُوَرَّد محليًا في `public/js/chart.umd.min.js`، بدون CDN): رسوم بيانية في اللوحة الرئيسية.
 - **خط Tajawal** مُنزَّل محليًا في `public/fonts/` (وليس عبر Google Fonts CDN) — درس مستفاد من مشروع سابق (`CLAUDE_CODE_HANDOFF.md`) أن خطوط النظام لا تشكّل العربي بشكل موثوق.
@@ -17,32 +19,46 @@
 ```
 alhadaf-crm/
 ├── server/
-│   ├── index.js          # نقطة الدخول: إعداد express، الجلسات، المصادقة، تركيب الراوترات
-│   ├── db.js              # اتصال SQLite + إنشاء الجداول (customers, contact_log, sop)
+│   ├── index.js          # نقطة الدخول: إعداد express، الجلسات، تسجيل الدخول (users)، تركيب الراوترات
+│   ├── db.js              # اتصال SQLite + إنشاء الجداول + الهجرات + تصدير dataDir
 │   ├── seed.js             # بيانات تجريبية (npm run seed) وحذفها (npm run clear-demo)
-│   ├── lib/util.js         # التحقق من الصيغ (هوية/VIN/جوال) + منطق التذكيرات (تواريخ الاستحقاق)
+│   ├── lib/
+│   │   ├── util.js         # التحقق من الصيغ (هوية/VIN/جوال) + منطق التذكيرات (تواريخ الاستحقاق)
+│   │   ├── activity.js     # logActivity() — يسجّل كل عملية بسجل النشاط
+│   │   └── upload.js       # إعداد multer الآمن (قائمة أنواع مسموحة، أسماء عشوائية، حد 10MB)
 │   └── routes/
-│       ├── customers.js    # CRUD + بحث/فلترة/فرز/تصفح + سجل التواصل + المتابعة + التبليغ
-│       ├── dashboard.js     # الإحصائيات + قسم "مستحقات اليوم" + رسالة واتساب الجماعية
+│       ├── customers.js    # CRUD + بحث/فلترة/فرز/تصفح + سجل التواصل + المتابعة + التبليغ + المرفقات
+│       ├── dashboard.js     # الإحصائيات + قسم "مستحقات اليوم" + قمع العملاء المحتملين + رسالة واتساب
 │       ├── sop.js           # صفحة إجراءات التعامل مع العميل (نص قابل للتعديل)
 │       ├── settings.js      # إدارة قائمة البائعين (جدول salespeople) من داخل الواجهة
 │       ├── cars.js          # إدارة كتالوج السيارات (جدول car_inventory: شركة+موديل+سنة+فئة+لون+سعر شراء)
+│       ├── users.js         # إدارة الحسابات (إضافة/تعطيل/حذف/إعادة تعيين كلمة مرور)
+│       ├── prospects.js     # العملاء المحتملون (leads) + مراحل القمع + تحويل لعميل فعلي
+│       ├── activity.js      # عرض/بحث/فلترة سجل النشاط
 │       └── data.js          # تصدير Excel (.xlsx عبر exceljs) + نسخة تقنية JSON للاستعادة
-├── views/                  # قوالب EJS (login, dashboard, customers/*, sop, settings, cars, restore, 404)
+├── views/                  # قوالب EJS (login, dashboard, customers/*, prospects/*, sop, settings, cars, users, activity, restore, 404)
 ├── public/
 │   ├── css/style.css       # الهوية البصرية (فحمي/ذهبي)، RTL بالكامل
 │   ├── js/chart.umd.min.js # Chart.js مُوَرَّد محليًا
 │   └── fonts/               # خطوط Tajawal (400/500/700/900) مُنزَّلة محليًا
-├── data/                    # قاعدة البيانات (alhadaf.db) — لا تُرفع على git
-├── .env.example / .env      # كلمة المرور وإعدادات الجلسة (.env غير مرفوع على git)
-└── README_AR.md            # دليل الاستخدام بالعربي للمالك (غير مبرمج)
+├── data/                    # قاعدة البيانات (alhadaf.db) + مجلد uploads/ — لا يُرفعوا على git، DATA_DIR يقدر يعيد توجيههم لقرص دائم عند النشر
+├── .env.example / .env      # كلمة مرور حساب "المدير" الأولي، سر الجلسة، DATA_DIR الاختياري (.env غير مرفوع على git)
+├── README_AR.md            # دليل الاستخدام بالعربي للمالك (غير مبرمج)
+└── DEPLOY_AR.md            # دليل نشر خطوة بخطوة على Render
 ```
 
 ## نموذج البيانات (customers)
 
 الحقول الإلزامية: `customer_name, national_id (10 أرقام), sale_date, payment_method, car_type, vin (17 خانة فريد), estimara_number (فريد)`.
 حقول إضافية: `phone (05xxxxxxxx), salesperson, price, notes, status, delivery_at, car_inventory_id`.
-حقول تتبّع: `reported/reported_at` (تبليغ المبيعات), `followup_done/followup_result/followup_note/followup_at` (متابعة ما بعد البيع), `is_demo` (لتمييز بيانات التجربة).
+حقول تتبّع: `reported/reported_at` (تبليغ المبيعات), `followup_done/followup_result/followup_note/followup_at` (متابعة ما بعد البيع), `created_by/updated_by` (اسم المستخدم، نص حر مو FK — يبقى بالسجل حتى لو انحذف الحساب), `is_demo` (لتمييز بيانات التجربة).
+
+## جداول إضافية
+
+- **`users`**: `name, username (فريد), password_hash (bcryptjs), is_active`. أول تشغيل للنظام (لو الجدول فاضي) ينشئ حساب `admin`/`المدير` تلقائيًا بكلمة مرور `APP_PASSWORD` من `.env` — بعد هذا، `.env` ما له أي أثر على الدخول، كل التحكم من `/users`.
+- **`activity_log`**: `user_name, action, entity_type, entity_id, details, created_at`. تُملأ عبر `logActivity(req, action, {...})` (`server/lib/activity.js`) — مُستدعاة من كل مسار يعدّل بيانات (customers/prospects/cars/settings/sop/users). `user_name` نص حر (مو FK) لنفس سبب `created_by` أعلاه.
+- **`prospects`** + **`prospect_log`**: نفس بنية `customers`/`contact_log` تقريبًا بس للعملاء المحتملين (قبل البيع). حقل `stage` (قائمة ثابتة في `prospects.js`: جديد/تواصل أولي/زار المعرض/تجربة قيادة/تفاوض على السعر/لم يتم البيع/تحوّل لعميل) و`converted_customer_id` (FK لـ customers، `ON DELETE SET NULL`).
+- **`attachments`**: `customer_id (FK CASCADE), label, original_name, stored_name (عشوائي على القرص، فريد), mime_type, size, uploaded_by`. الملفات تُحفظ فعليًا في `<dataDir>/uploads/` (خارج مجلد المشروع لو `DATA_DIR` مضبوط) — **غير مشمولة إطلاقًا في نسخة JSON الاحتياطية**، لازم تُنسخ يدويًا لو احتجت نسخ احتياطي كامل للمرفقات.
 
 `car_type` يبقى نص حر مركّب (مثال: `Toyota Camry 2026 - أبيض`) — ده اللي يُستخدم في البحث/الفلترة/التصدير كما هو. `car_inventory_id` مرجع اختياري (FK، `ON DELETE SET NULL`) لجدول `car_inventory` يُملأ تلقائيًا لو العميل اختار السيارة من قائمة الكتالوج بدل الكتابة اليدوية، ويُستخدم مستقبلًا لو احتجنا نحسب هامش الربح (سعر البيع - سعر الشراء). حذف سيارة من الكتالوج يفرّغ `car_inventory_id` فقط في السجلات القديمة (`ON DELETE SET NULL`) — نص `car_type` يبقى كما هو دائمًا، فالسجل التاريخي ما يتأثر.
 
@@ -55,7 +71,9 @@ alhadaf-crm/
 
 ## نقاط مهمة لأي جلسة قادمة
 
-- المصادقة كلمة مرور واحدة فقط من `.env` (`APP_PASSWORD`) — لا يوجد نظام مستخدمين/صلاحيات متعددة، لأن المالك طلب بساطة صريحة ("أنا مو مبرمج... لا تسألني عن قرارات تقنية").
+- **حسابات متعددة بدون صلاحيات متدرجة (أدوار)**: كل مستخدم مسجّل يقدر يدير كل شيء (بما فيها إضافة/تعطيل/حذف مستخدمين آخرين، بس ما يقدر يعطّل أو يحذف حسابه هو نفسه وهو داخل فيه — حماية بسيطة من قفل النفس بره النظام). هذا قرار تبسيط متعمد (فريق صغير موثوق، مو شركة كبيرة) — لو طُلب لاحقًا فصل صلاحيات "مدير" عن "بائع"، يحتاج عمود `role` على `users` + فحوصات إضافية بكل route، مو بس بـ requireAuth.
+- **رفع المرفقات آمن بتصميم**: `server/lib/upload.js` يستخدم قائمة mimetype مسموحة (JPG/PNG/WEBP/PDF فقط، مو امتداد الملف المُدخل من المستخدم)، اسم ملف عشوائي بالكامل على القرص (`crypto.randomBytes`، صفر اعتماد على اسم الملف الأصلي)، وحد حجم 10MB. التنزيل عبر `res.download()` يضبط `Content-Disposition: attachment` تلقائيًا فيمنع تنفيذ أي محتوى ضار كـ HTML/SVG مباشرة بالمتصفح. حذف عميل يحذف ملفاته فعليًا من القرص (مو بس صف قاعدة البيانات) عبر `fs.unlink` قبل `DELETE FROM customers`.
+- **تحويل عميل محتمل لعميل**: `/customers/new?from_prospect=<id>` يعبّي نموذج البيع تلقائيًا (اسم/جوال/بائع/سيارة مهتم فيها) عبر حقل مخفي `from_prospect_id`، وبعد الحفظ الناجح `customers.js` يحدّث `prospects.stage='تحوّل لعميل'` و`converted_customer_id`. لو احتجت تغيّر ترتيب مراحل القمع، عدّل مصفوفة `STAGES` في `server/routes/prospects.js` فقط (مستخدمة بكل القوالب والفلاتر).
 - **قائمة البائعين قابلة للتعديل من الواجهة** (`/settings`، جدول `salespeople`) بناءً على طلب صريح من المالك ("أقدر أتحكم بالموقع بدون ما أرجع لك"). عمدًا لم نجعل `PAYMENT_METHODS` أو `STATUSES` (في `customers.js`) قابلة للتعديل من الواجهة رغم تشابه الفكرة، لأنها مرتبطة بفئات رسمية معتمدة في برنامج جميل بلس (تبليغ المبيعات لازم يطابق فئات محددة) — لو المالك طلب جعلها قابلة للتعديل لاحقًا، وضّح له هذا القيد أولاً قبل التنفيذ.
 - حذف بائع من `/settings` **لا يمسح** بيانات العملاء التاريخية المرتبطة بالاسم (الحقل `customers.salesperson` نص حر، مو مفتاح خارجي) — فقط يشيله من قائمة الاختيار لعمليات البيع الجديدة. `getSalespeople()` في `customers.js` تدمج جدول `salespeople` مع الأسماء التاريخية الموجودة فعليًا في `customers` (UNION) حتى تبقى ظاهرة في الفلاتر.
 - **كتالوج السيارات** (`/cars`، جدول `car_inventory`، مفاتيح فريدة `UNIQUE(brand, model, year, trim, color)`) بنفس فلسفة قائمة البائعين: إدارة كاملة من الواجهة، وحذف عنصر لا يمسح بيانات البيع التاريخية. في نموذج إضافة/تعديل عميل (`views/customers/form.ejs`) القائمة كاملة تُمرَّر كـ JSON مضمّن في الصفحة (`CAR_INVENTORY`)، والفلترة المتسلسلة (شركة → موديل → سنة → **الفئة/trim** → لون) تصير بالكامل بجافاسكربت في المتصفح بدون أي طلبات AJAX إضافية — مناسب لحجم بيانات صغير مثل هذا. فيه خيار "كتابة يدوية" (checkbox يعطّل/يفعّل حقول الإدخال) للسيارات النادرة غير الموجودة بالكتالوج.
