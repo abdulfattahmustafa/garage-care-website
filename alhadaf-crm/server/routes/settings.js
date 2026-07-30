@@ -5,7 +5,16 @@ const { logActivity } = require('../lib/activity');
 router.get('/', (req, res) => {
   const db = req.db;
   const salespeople = db.prepare('SELECT * FROM salespeople ORDER BY name').all();
-  res.render('settings', { salespeople, error: req.query.error || null });
+  const appSettings = db.prepare('SELECT * FROM app_settings WHERE id = 1').get();
+  res.render('settings', { salespeople, appSettings, error: req.query.error || null });
+});
+
+router.post('/auto-assign', (req, res) => {
+  const db = req.db;
+  const enabled = req.body.enabled === '1' ? 1 : 0;
+  db.prepare('UPDATE app_settings SET auto_assign_prospects = ? WHERE id = 1').run(enabled);
+  logActivity(req, enabled ? 'تفعيل التوزيع التلقائي للعملاء المحتملين' : 'إيقاف التوزيع التلقائي للعملاء المحتملين', {});
+  res.redirect('/settings');
 });
 
 router.post('/salespeople', (req, res) => {

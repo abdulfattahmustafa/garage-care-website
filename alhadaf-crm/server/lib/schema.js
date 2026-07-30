@@ -64,6 +64,11 @@ CREATE TABLE IF NOT EXISTS sop (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS app_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  auto_assign_prospects INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS salespeople (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
@@ -185,6 +190,11 @@ CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
   const userCols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
   if (!userCols.includes('role')) {
     db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'manager'");
+  }
+
+  const appSettingsExists = db.prepare('SELECT 1 FROM app_settings WHERE id = 1').get();
+  if (!appSettingsExists) {
+    db.prepare('INSERT INTO app_settings (id, auto_assign_prospects) VALUES (1, 0)').run();
   }
 
   const sopExists = db.prepare('SELECT 1 FROM sop WHERE id = 1').get();

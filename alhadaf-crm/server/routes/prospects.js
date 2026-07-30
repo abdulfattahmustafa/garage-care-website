@@ -4,6 +4,7 @@ const { logActivity } = require('../lib/activity');
 const { validatePhone } = require('../lib/util');
 
 const STAGES = ['جديد', 'تواصل أولي', 'زار المعرض', 'تجربة قيادة', 'تفاوض على السعر', 'لم يتم البيع', 'تحوّل لعميل'];
+const TERMINAL_STAGES = ['لم يتم البيع', 'تحوّل لعميل'];
 const SOURCES = ['زيارة مباشرة', 'اتصال هاتفي', 'إنستقرام', 'سناب شات', 'تيك توك', 'واتساب', 'توصية من عميل', 'موقع إلكتروني', 'أخرى'];
 const PAGE_SIZE = 20;
 
@@ -16,6 +17,28 @@ function getSalespeople(db) {
     SELECT salesperson AS name FROM prospects WHERE salesperson IS NOT NULL AND salesperson != ''
     ORDER BY name`)
     .all().map(r => r.name);
+}
+
+// Picks the roster salesperson with the fewest currently-open prospects
+// (not yet converted or lost) — a simple load-balanced assignment, so new
+// leads land on whoever has the lightest active pipeline right now.
+function pickAutoAssignee(db) {
+  const roster = db.prepare('SELECT name FROM salespeople ORDER BY name').all().map(r => r.name);
+  if (!roster.length) return null;
+
+  const openCount = db.prepare(`
+    SELECT salesperson, COUNT(*) c FROM prospects
+    WHERE stage NOT IN (${TERMINAL_STAGES.map(() => '?').join(',')})
+    GROUP BY salesperson`).all(...TERMINAL_STAGES);
+  const countByName = Object.fromEntries(openCount.map(r => [r.salesperson, r.c]));
+
+  let best = roster[0];
+  let bestCount = countByName[best] || 0;
+  for (const name of roster.slice(1)) {
+    const c = countByName[name] || 0;
+    if (c < bestCount) { best = name; bestCount = c; }
+  }
+  return best;
 }
 
 router.get('/', (req, res) => {
@@ -63,6 +86,16 @@ router.post('/', (req, res) => {
     return res.status(400).render('prospects/form', { prospect: body, errors, STAGES, SOURCES, salespeople: getSalespeople(db) });
   }
 
+  let salesperson = body.salesperson ? body.salesperson.trim() : '';
+  let autoAssigned = false;
+  if (!salesperson) {
+    const appSettings = db.prepare('SELECT * FROM app_settings WHERE id = 1').get();
+    if (appSettings && appSettings.auto_assign_prospects) {
+      const picked = pickAutoAssignee(db);
+      if (picked) { salesperson = picked; autoAssigned = true; }
+    }
+  }
+
   const ts = nowISO();
   const info = db.prepare(`INSERT INTO prospects
     (name, phone, source, interested_car, stage, salesperson, notes, is_demo, created_by, created_at, updated_at)
@@ -73,13 +106,13 @@ router.post('/', (req, res) => {
       source: body.source || null,
       interested_car: body.interested_car ? body.interested_car.trim() : null,
       stage: STAGES.includes(body.stage) ? body.stage : 'جديد',
-      salesperson: body.salesperson ? body.salesperson.trim() : null,
+      salesperson: salesperson || null,
       notes: body.notes || null,
       created_by: req.session.userName,
       created_at: ts, updated_at: ts,
     });
 
-  logActivity(req, 'إضافة عميل محتمل', { entityType: 'prospect', entityId: info.lastInsertRowid, details: body.name.trim() });
+  logActivity(req, 'إضافة عميل محتمل', { entityType: 'prospect', entityId: info.lastInsertRowid, details: body.name.trim() + (autoAssigned ? ` (توزيع تلقائي على ${salesperson})` : '') });
   res.redirect('/prospects/' + info.lastInsertRowid);
 });
 

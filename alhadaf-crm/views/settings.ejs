@@ -7,6 +7,17 @@
     <div class="section-title"><span class="bar"></span> الإعدادات</div>
 
     <div class="card">
+      <div class="section-title" style="font-size:16px"><span class="bar"></span> توزيع العملاء المحتملين</div>
+      <p class="muted">لو مفعّل، أي عميل محتمل جديد تضيفه بدون ما تختار بائع يتوزع تلقائيًا على البائع اللي عنده أقل عدد عملاء محتملين مفتوحين حاليًا (يعني ما وصلوا "تحوّل لعميل" أو "لم يتم البيع") — توزيع عادل بدون ما تحتاج تفكر فيه كل مرة.</p>
+      <form method="POST" action="/settings/auto-assign" style="margin-top:10px; display:flex; align-items:center; gap:10px">
+        <input type="hidden" name="enabled" value="<%= appSettings.auto_assign_prospects ? '0' : '1' %>">
+        <button type="submit" class="btn <%= appSettings.auto_assign_prospects ? 'btn-primary' : 'btn-outline' %> btn-sm">
+          <%= appSettings.auto_assign_prospects ? '✅ مفعّل — اضغط للإيقاف' : 'إيقاف — اضغط للتفعيل' %>
+        </button>
+      </form>
+    </div>
+
+    <div class="card">
       <div class="section-title" style="font-size:16px"><span class="bar"></span> قائمة البائعين</div>
       <p class="muted">هذي القائمة تظهر عند إضافة أو تعديل عملية بيع، وفي فلترة صفحة العملاء. حذف اسم من هنا لا يمسح بيانات العملاء القدامى المرتبطين فيه، بس يشيله من القائمة لعمليات البيع الجديدة.</p>
 
