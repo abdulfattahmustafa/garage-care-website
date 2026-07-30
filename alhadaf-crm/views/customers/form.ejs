@@ -11,15 +11,30 @@
         <input type="hidden" name="from_prospect_id" value="<%= customer.from_prospect_id %>">
         <div class="flash flash-success" style="margin-bottom:16px">تعبئة تلقائية من عميل محتمل — أكمل باقي بيانات البيع.</div>
       <% } %>
+
+      <div class="field">
+        <label>نوع العميل *</label>
+        <div class="form-row" style="gap:20px">
+          <label style="display:flex; align-items:center; gap:6px; font-weight:400">
+            <input type="radio" name="customer_type" value="رخصة واستمارة" id="typeLicense"
+              <%= !(customer && customer.customer_type === 'معارض') ? 'checked' : '' %>> رخصة واستمارة
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; font-weight:400">
+            <input type="radio" name="customer_type" value="معارض" id="typeDealer"
+              <%= (customer && customer.customer_type === 'معارض') ? 'checked' : '' %>> معارض
+          </label>
+        </div>
+      </div>
+
       <div class="form-row">
         <div class="field">
-          <label>اسم العميل *</label>
+          <label id="labelCustomerName">اسم العميل *</label>
           <input type="text" name="customer_name" value="<%= customer ? customer.customer_name || '' : '' %>" class="<%= errors.customer_name ? 'invalid' : '' %>" required>
           <% if (errors.customer_name) { %><div class="err"><%= errors.customer_name %></div><% } %>
         </div>
         <div class="field">
-          <label>رقم الهوية (10 أرقام) *</label>
-          <input type="text" name="national_id" inputmode="numeric" maxlength="10" value="<%= customer ? customer.national_id || '' : '' %>" class="<%= errors.national_id ? 'invalid' : '' %>" required>
+          <label id="labelNationalId">رقم الهوية (10 أرقام) *</label>
+          <input type="text" name="national_id" id="nationalIdInput" inputmode="numeric" maxlength="10" value="<%= customer ? customer.national_id || '' : '' %>" class="<%= errors.national_id ? 'invalid' : '' %>" required>
           <% if (errors.national_id) { %><div class="err"><%= errors.national_id %></div><% } %>
         </div>
       </div>
@@ -32,12 +47,14 @@
         </div>
         <div class="field">
           <label>طريقة الدفع *</label>
-          <select name="payment_method" class="<%= errors.payment_method ? 'invalid' : '' %>" required>
+          <select name="payment_method" id="paymentSelect" class="<%= errors.payment_method ? 'invalid' : '' %>">
             <option value="">اختر...</option>
             <% PAYMENT_METHODS.forEach(m => { %>
               <option value="<%= m %>" <%= customer && customer.payment_method===m ? 'selected':'' %>><%= m %></option>
             <% }) %>
           </select>
+          <input type="text" id="paymentDealerDisplay" value="نقدي" disabled style="display:none">
+          <input type="hidden" name="payment_method" id="paymentDealerHidden" value="نقدي" disabled>
           <% if (errors.payment_method) { %><div class="err"><%= errors.payment_method %></div><% } %>
         </div>
       </div>
@@ -84,13 +101,13 @@
 
       <div class="form-row">
         <div class="field">
-          <label>رقم هيكل السيارة VIN (17 خانة) *</label>
-          <input type="text" name="vin" maxlength="17" style="text-transform:uppercase" value="<%= customer ? customer.vin || '' : '' %>" class="<%= errors.vin ? 'invalid' : '' %>" required>
+          <label>رقم هيكل السيارة VIN *</label>
+          <input type="text" name="vin" style="text-transform:uppercase" value="<%= customer ? customer.vin || '' : '' %>" class="<%= errors.vin ? 'invalid' : '' %>" required>
           <% if (errors.vin) { %><div class="err"><%= errors.vin %></div><% } %>
         </div>
         <div class="field">
-          <label>رقم الاستمارة *</label>
-          <input type="text" name="estimara_number" value="<%= customer ? customer.estimara_number || '' : '' %>" class="<%= errors.estimara_number ? 'invalid' : '' %>" required>
+          <label id="labelEstimara">رقم الاستمارة *</label>
+          <input type="text" name="estimara_number" id="estimaraInput" value="<%= customer ? customer.estimara_number || '' : '' %>" class="<%= errors.estimara_number ? 'invalid' : '' %>" required>
           <% if (errors.estimara_number) { %><div class="err"><%= errors.estimara_number %></div><% } %>
         </div>
       </div>
@@ -129,6 +146,47 @@
   </main>
   <script>
     document.querySelector('input[name="vin"]').addEventListener('input', function(){ this.value = this.value.toUpperCase(); });
+
+    // نوع العميل: يبدّل التسميات والقيود بين بيع فردي (رخصة واستمارة) وبيع
+    // لمعرض ثاني — نفس الأعمدة بقاعدة البيانات، بس قواعد مختلفة.
+    const typeLicense = document.getElementById('typeLicense');
+    const typeDealer = document.getElementById('typeDealer');
+    const labelCustomerName = document.getElementById('labelCustomerName');
+    const labelNationalId = document.getElementById('labelNationalId');
+    const nationalIdInput = document.getElementById('nationalIdInput');
+    const paymentSelect = document.getElementById('paymentSelect');
+    const paymentDealerDisplay = document.getElementById('paymentDealerDisplay');
+    const paymentDealerHidden = document.getElementById('paymentDealerHidden');
+    const labelEstimara = document.getElementById('labelEstimara');
+    const estimaraInput = document.getElementById('estimaraInput');
+
+    function applyCustomerType() {
+      const isDealer = typeDealer.checked;
+
+      labelCustomerName.textContent = isDealer ? 'اسم المعرض *' : 'اسم العميل *';
+
+      labelNationalId.textContent = isDealer ? 'رقم ال700 *' : 'رقم الهوية (10 أرقام) *';
+      if (isDealer) {
+        nationalIdInput.removeAttribute('maxlength');
+        nationalIdInput.removeAttribute('inputmode');
+      } else {
+        nationalIdInput.setAttribute('maxlength', '10');
+        nationalIdInput.setAttribute('inputmode', 'numeric');
+      }
+
+      paymentSelect.style.display = isDealer ? 'none' : '';
+      paymentDealerDisplay.style.display = isDealer ? '' : 'none';
+      paymentSelect.disabled = isDealer;
+      paymentSelect.required = !isDealer;
+      paymentDealerHidden.disabled = !isDealer;
+
+      labelEstimara.textContent = isDealer ? 'رقم الاستمارة (اختياري)' : 'رقم الاستمارة *';
+      estimaraInput.required = !isDealer;
+    }
+
+    typeLicense.addEventListener('change', applyCustomerType);
+    typeDealer.addEventListener('change', applyCustomerType);
+    applyCustomerType();
 
     const CAR_INVENTORY = <%- JSON.stringify(carInventory) %>;
     const existingCustomer = <%- JSON.stringify(customer || null) %>;

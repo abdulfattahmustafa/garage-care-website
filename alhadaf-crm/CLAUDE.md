@@ -65,9 +65,16 @@ alhadaf-crm/
 
 ## نموذج البيانات (customers)
 
-الحقول الإلزامية: `customer_name, national_id (10 أرقام), sale_date, payment_method, car_type, vin (17 خانة فريد), estimara_number (فريد)`.
+الحقول الإلزامية: `customer_name, national_id, sale_date, payment_method, car_type, vin`. `estimara_number` إلزامي بس لبيع النوع "رخصة واستمارة" (شوف أدناه).
 حقول إضافية: `phone (05xxxxxxxx), salesperson, price, notes, status, delivery_at, car_inventory_id`.
 حقول تتبّع: `reported/reported_at` (تبليغ المبيعات), `followup_done/followup_result/followup_note/followup_at` (متابعة ما بعد البيع), `created_by/updated_by` (اسم المستخدم، نص حر مو FK — يبقى بالسجل حتى لو انحذف الحساب), `is_demo` (لتمييز بيانات التجربة).
+
+**`customer_type` ('رخصة واستمارة' | 'معارض')**: نفس أعمدة الجدول تُستخدم لنوعين مختلفين من عمليات البيع، يختارهما البائع من زر راديو أول الفورم (`views/customers/form.ejs`)، وتتغيّر بحسبه قواعد التحقق في `validateBody()` (`server/routes/customers.js`) والتسميات المعروضة (JS بالفورم + `customers/detail.ejs`):
+- **رخصة واستمارة** (الافتراضي، بيع فردي عادي): `customer_name`="اسم العميل"، `national_id` لازم 10 أرقام بالضبط، `payment_method` من القائمة الكاملة (`نقدي، تمويل، شركات، جهات حكومية`)، `estimara_number` إلزامي.
+- **معارض** (بيع جملة لمعرض ثاني): `customer_name`="اسم المعرض"، `national_id`="رقم ال700" (نص حر، بدون قيد 10 أرقام)، `payment_method` مقفول على `نقدي` بس (مفروض بالسيرفر برضو، مو بس الواجهة — تجربة إرسال قيمة ثانية ترجع خطأ 400)، `estimara_number` **اختياري**.
+- `vin` بكل الحالتين نص حر إلزامي (مو قيد 17 خانة زي قبل — البائع يقدر يكتب أي شيء موجود بالفعل بمستندات السيارة).
+- **مهم عن `estimara_number` الفارغ**: القيمة الفارغة تُخزَّن كـ `NULL` صراحة (مو نص فاضي `''`) في `customers.js` — قيد `UNIQUE` على العمود يسمح بعدد غير محدود من صفوف `NULL` بنفس الوقت (سلوك SQL قياسي، NULL ما يُقارن كمتساوٍ مع NULL ثاني)، فتقدر تضيف عشرات عمليات بيع لمعارض بدون رقم استمارة بدون أي تعارض. لو خزّنّاه كنص فاضي بدل NULL، ثاني عملية بيع لمعرض بدون استمارة كانت بترجع خطأ "مسجل مسبقًا" غلط.
+- **هجرة قاعدة البيانات**: `estimara_number` كان `NOT NULL UNIQUE` قبل هذي الميزة. تحويله لـ `UNIQUE` بس (بدون `NOT NULL`) يحتاج إعادة بناء الجدول كامل (SQLite ما يقدر يشيل `NOT NULL` بـ `ALTER TABLE` بسيط) — نفس أسلوب هجرة `car_inventory.trim` (rename→create→insert-select→drop) بس هذي المرة الجدول المُعاد بناؤه (`customers`) هو نفسه الأب لجداول `attachments`/`contact_log` (`ON DELETE CASCADE`) و`prospects.converted_customer_id` (`ON DELETE SET NULL`) — فلازم `PRAGMA foreign_keys = OFF` قبل الهجرة و`= ON` بعدها، وإلا `DROP TABLE customers_old` يمسح كل المرفقات وسجل التواصل بصمت. الهجرة برضو تحذف فهرس `idx_customers_sale_date` مع الجدول القديم، فلازم تُعاد بعد إنشاء الجدول الجديد — الاثنين مُتحقق منهم يدويًا بسكربت محاكاة قبل الدمج (قاعدة بيانات وهمية بعميل + مرفق + سجل تواصل + عميل محتمل محوّل، تأكدنا كلهم يبقون سليمين بعد الهجرة).
 
 ## جداول إضافية
 

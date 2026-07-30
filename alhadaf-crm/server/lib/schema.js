@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS car_inventory (
 
 CREATE TABLE IF NOT EXISTS customers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_type TEXT NOT NULL DEFAULT 'رخصة واستمارة',
   customer_name TEXT NOT NULL,
   national_id TEXT NOT NULL,
   sale_date TEXT NOT NULL,
@@ -30,7 +31,7 @@ CREATE TABLE IF NOT EXISTS customers (
   car_type TEXT NOT NULL,
   car_inventory_id INTEGER REFERENCES car_inventory(id) ON DELETE SET NULL,
   vin TEXT NOT NULL UNIQUE,
-  estimara_number TEXT NOT NULL UNIQUE,
+  estimara_number TEXT UNIQUE,
   phone TEXT,
   salesperson TEXT,
   price REAL,
@@ -152,6 +153,63 @@ CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
   }
   if (!customerCols.includes('updated_by')) {
     db.exec('ALTER TABLE customers ADD COLUMN updated_by TEXT');
+  }
+  if (!customerCols.includes('customer_type')) {
+    db.exec("ALTER TABLE customers ADD COLUMN customer_type TEXT NOT NULL DEFAULT 'رخصة واستمارة'");
+  }
+
+  // Migration for customers tables created before "معارض" (dealer) sales
+  // existed: estimara_number was NOT NULL, but dealer sales don't always
+  // have one. A plain ALTER TABLE can't drop a NOT NULL constraint in
+  // SQLite, so the table is rebuilt in place — same rename/create/copy/drop
+  // procedure as the car_inventory trim migration below, and for the same
+  // reason foreign_keys must be OFF for it: customers is the parent of
+  // attachments/contact_log (ON DELETE CASCADE) and prospects.converted_customer_id
+  // (ON DELETE SET NULL), so dropping customers_old with foreign_keys ON would
+  // wipe every attachment and contact-log row and null every conversion link,
+  // even though a same-named, same-id replacement table already exists.
+  // Dropping the old table also drops its index, so idx_customers_sale_date
+  // has to be recreated afterward.
+  const estimaraCol = db.prepare("PRAGMA table_info(customers)").all().find(c => c.name === 'estimara_number');
+  if (estimaraCol && estimaraCol.notnull) {
+    db.exec('PRAGMA foreign_keys = OFF');
+    db.exec('ALTER TABLE customers RENAME TO customers_old');
+    db.exec(`CREATE TABLE customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_type TEXT NOT NULL DEFAULT 'رخصة واستمارة',
+      customer_name TEXT NOT NULL,
+      national_id TEXT NOT NULL,
+      sale_date TEXT NOT NULL,
+      payment_method TEXT NOT NULL,
+      delivery_at TEXT,
+      car_type TEXT NOT NULL,
+      car_inventory_id INTEGER REFERENCES car_inventory(id) ON DELETE SET NULL,
+      vin TEXT NOT NULL UNIQUE,
+      estimara_number TEXT UNIQUE,
+      phone TEXT,
+      salesperson TEXT,
+      price REAL,
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT 'جديد',
+      reported INTEGER NOT NULL DEFAULT 0,
+      reported_at TEXT,
+      followup_done INTEGER NOT NULL DEFAULT 0,
+      followup_result TEXT,
+      followup_note TEXT,
+      followup_at TEXT,
+      created_by TEXT,
+      updated_by TEXT,
+      is_demo INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`);
+    db.exec(`INSERT INTO customers
+      (id, customer_type, customer_name, national_id, sale_date, payment_method, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, reported_at, followup_done, followup_result, followup_note, followup_at, created_by, updated_by, is_demo, created_at, updated_at)
+      SELECT id, customer_type, customer_name, national_id, sale_date, payment_method, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, reported_at, followup_done, followup_result, followup_note, followup_at, created_by, updated_by, is_demo, created_at, updated_at
+      FROM customers_old`);
+    db.exec('DROP TABLE customers_old');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_customers_sale_date ON customers(sale_date)');
+    db.exec('PRAGMA foreign_keys = ON');
   }
 
   // Migration for car_inventory created before "trim" (الفئة) existed. A plain
