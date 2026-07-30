@@ -33,6 +33,34 @@ router.post('/', (req, res) => {
   res.redirect('/cars');
 });
 
+router.post('/:id', (req, res) => {
+  const db = req.db;
+  const existing = db.prepare('SELECT * FROM car_inventory WHERE id = ?').get(req.params.id);
+  if (!existing) return res.redirect('/cars');
+
+  const brand = (req.body.brand || '').trim();
+  const model = (req.body.model || '').trim();
+  const year = (req.body.year || '').trim();
+  const trim = (req.body.trim || '').trim();
+  const color = (req.body.color || '').trim();
+  const purchase_price = req.body.purchase_price ? parseFloat(req.body.purchase_price) : null;
+
+  if (!brand || !model || !year || !trim || !color) {
+    return res.redirect('/cars?error=' + encodeURIComponent('لازم تعبي الشركة والموديل والسنة والفئة واللون كلهم'));
+  }
+
+  const dup = db.prepare('SELECT 1 FROM car_inventory WHERE brand=? AND model=? AND year=? AND trim=? AND color=? AND id != ?')
+    .get(brand, model, year, trim, color, req.params.id);
+  if (dup) {
+    return res.redirect('/cars?error=' + encodeURIComponent('هذي السيارة (نفس الشركة والموديل والسنة والفئة واللون) موجودة أصلاً بالقائمة'));
+  }
+
+  db.prepare('UPDATE car_inventory SET brand=?, model=?, year=?, trim=?, color=?, purchase_price=? WHERE id=?')
+    .run(brand, model, year, trim, color, purchase_price, req.params.id);
+  logActivity(req, 'تعديل سيارة بالكتالوج', { entityType: 'car', entityId: req.params.id, details: `${brand} ${model} ${year} ${trim} - ${color}` });
+  res.redirect('/cars');
+});
+
 router.post('/:id/delete', (req, res) => {
   const db = req.db;
   const car = db.prepare('SELECT * FROM car_inventory WHERE id = ?').get(req.params.id);
