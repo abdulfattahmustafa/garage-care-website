@@ -42,6 +42,10 @@ function validatePhone(v) {
   return /^05\d{8}$/.test(v);
 }
 
+function validateEmail(v) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || '');
+}
+
 function fmtDate(d) {
   if (!d) return '—';
   const dt = new Date(d);
@@ -65,6 +69,7 @@ module.exports = {
   validateNationalId,
   validateVin,
   validatePhone,
+  validateEmail,
   fmtDate,
   fmtDateTime,
 };

@@ -20,6 +20,10 @@
           <label>اسم المستخدم (إنجليزي)</label>
           <input type="text" name="username" placeholder="مثال: ahmad" required>
         </div>
+        <div class="field" style="flex:1 1 180px">
+          <label>البريد الإلكتروني (لاسترجاع كلمة المرور)</label>
+          <input type="email" name="email" placeholder="اختياري">
+        </div>
         <div class="field" style="flex:1 1 140px">
           <label>كلمة المرور</label>
           <input type="password" name="password" placeholder="4 خانات على الأقل" required>
@@ -41,12 +45,19 @@
 
       <div class="table-wrap">
         <table>
-          <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الصلاحية</th><th>الحالة</th><th></th></tr></thead>
+          <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>البريد الإلكتروني</th><th>الصلاحية</th><th>الحالة</th><th></th></tr></thead>
           <tbody>
             <% users.forEach(u => { %>
               <tr>
                 <td><%= u.name %><% if (String(u.id) === String(currentUserId)) { %> <span class="badge badge-gray">أنت</span><% } %></td>
                 <td><%= u.username %></td>
+                <td>
+                  <span class="muted" style="font-size:13px"><%= u.email || '—' %></span>
+                  <form method="POST" action="/users/<%= u.id %>/email" onsubmit="return setEmail(event, <%= u.id %>, '<%= (u.email || '').replace(/'/g, "&#39;") %>');" style="display:inline">
+                    <button type="submit" class="btn btn-outline btn-sm" style="padding:2px 8px; font-size:12px">تعديل</button>
+                    <input type="hidden" name="email" class="email-input">
+                  </form>
+                </td>
                 <td>
                   <form method="POST" action="/users/<%= u.id %>/role" style="display:inline">
                     <select name="role" onchange="this.form.submit()">
@@ -84,6 +95,12 @@
       const p = prompt('اكتب كلمة المرور الجديدة (4 خانات على الأقل):');
       if (!p) { ev.preventDefault(); return false; }
       ev.target.querySelector('.pw-input').value = p;
+      return true;
+    }
+    function setEmail(ev, id, current) {
+      const e = prompt('البريد الإلكتروني (اتركه فاضي لحذفه):', current || '');
+      if (e === null) { ev.preventDefault(); return false; }
+      ev.target.querySelector('.email-input').value = e.trim();
       return true;
     }
   </script>

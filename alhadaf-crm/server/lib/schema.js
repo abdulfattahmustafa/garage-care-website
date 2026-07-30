@@ -83,6 +83,9 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'employee',
+  email TEXT,
+  reset_token TEXT,
+  reset_token_expires TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL
 );
@@ -248,6 +251,18 @@ CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
   const userCols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
   if (!userCols.includes('role')) {
     db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'manager'");
+  }
+  // Migration for tenants created before password-reset-by-email existed —
+  // accounts made before this have no email on file, so self-service reset
+  // won't work for them until someone sets one (see /users email edit).
+  if (!userCols.includes('email')) {
+    db.exec('ALTER TABLE users ADD COLUMN email TEXT');
+  }
+  if (!userCols.includes('reset_token')) {
+    db.exec('ALTER TABLE users ADD COLUMN reset_token TEXT');
+  }
+  if (!userCols.includes('reset_token_expires')) {
+    db.exec('ALTER TABLE users ADD COLUMN reset_token_expires TEXT');
   }
 
   const appSettingsExists = db.prepare('SELECT 1 FROM app_settings WHERE id = 1').get();

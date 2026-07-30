@@ -30,6 +30,10 @@
           <input type="text" name="username" value="<%= values.username || '' %>" required autocapitalize="off" autocorrect="off">
         </div>
         <div class="field" style="text-align:right">
+          <label>البريد الإلكتروني (لاسترجاع كلمة المرور لاحقًا)</label>
+          <input type="email" name="email" value="<%= values.email || '' %>" required autocapitalize="off" autocorrect="off">
+        </div>
+        <div class="field" style="text-align:right">
           <label>كلمة المرور</label>
           <input type="password" name="password" required>
         </div>

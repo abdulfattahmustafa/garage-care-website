@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { logActivity } = require('../lib/activity');
+const { validateEmail } = require('../lib/util');
 
 const ROLES = ['manager', 'employee'];
 const ROLE_LABELS = { manager: 'مدير المعرض', employee: 'موظف' };
@@ -12,7 +13,7 @@ function activeManagerCount(db) {
 
 router.get('/', (req, res) => {
   const db = req.db;
-  const users = db.prepare('SELECT id, name, username, role, is_active, created_at FROM users ORDER BY name').all();
+  const users = db.prepare('SELECT id, name, username, role, email, is_active, created_at FROM users ORDER BY name').all();
   res.render('users', { users, error: req.query.error || null, ROLE_LABELS });
 });
 
@@ -20,6 +21,7 @@ router.post('/', (req, res) => {
   const db = req.db;
   const name = (req.body.name || '').trim();
   const username = (req.body.username || '').trim().toLowerCase();
+  const email = (req.body.email || '').trim().toLowerCase();
   const password = req.body.password || '';
   const role = ROLES.includes(req.body.role) ? req.body.role : 'employee';
 
@@ -28,6 +30,9 @@ router.post('/', (req, res) => {
   }
   if (!/^[a-z0-9_.]+$/.test(username)) {
     return res.redirect('/users?error=' + encodeURIComponent('اسم المستخدم لازم يكون حروف إنجليزية وأرقام بس (بدون مسافات)'));
+  }
+  if (email && !validateEmail(email)) {
+    return res.redirect('/users?error=' + encodeURIComponent('البريد الإلكتروني غير صحيح'));
   }
   if (password.length < 4) {
     return res.redirect('/users?error=' + encodeURIComponent('كلمة المرور لازم تكون 4 خانات على الأقل'));
@@ -38,9 +43,22 @@ router.post('/', (req, res) => {
   }
 
   const hash = bcrypt.hashSync(password, 10);
-  const info = db.prepare('INSERT INTO users (name, username, password_hash, role, is_active, created_at) VALUES (?,?,?,?,1,?)')
-    .run(name, username, hash, role, new Date().toISOString());
+  const info = db.prepare('INSERT INTO users (name, username, password_hash, role, email, is_active, created_at) VALUES (?,?,?,?,?,1,?)')
+    .run(name, username, hash, role, email || null, new Date().toISOString());
   logActivity(req, 'إضافة مستخدم', { entityType: 'user', entityId: info.lastInsertRowid, details: `${name} (${username}) - ${ROLE_LABELS[role]}` });
+  res.redirect('/users');
+});
+
+router.post('/:id/email', (req, res) => {
+  const db = req.db;
+  const email = (req.body.email || '').trim().toLowerCase();
+  if (email && !validateEmail(email)) {
+    return res.redirect('/users?error=' + encodeURIComponent('البريد الإلكتروني غير صحيح'));
+  }
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+  if (!user) return res.redirect('/users');
+  db.prepare('UPDATE users SET email = ? WHERE id = ?').run(email || null, req.params.id);
+  logActivity(req, 'تعديل بريد مستخدم', { entityType: 'user', entityId: user.id, details: user.name });
   res.redirect('/users');
 });
 

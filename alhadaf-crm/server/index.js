@@ -1,12 +1,17 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 
 const tenantDb = require('./tenantDb');
 const { logActivity } = require('./lib/activity');
+const { sendPasswordResetEmail } = require('./lib/mailer');
+const { validateEmail } = require('./lib/util');
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -111,13 +116,17 @@ app.post('/signup', (req, res) => {
   const slug = (req.body.slug || '').trim().toLowerCase();
   const adminName = (req.body.admin_name || '').trim();
   const username = (req.body.username || '').trim().toLowerCase();
+  const email = (req.body.email || '').trim().toLowerCase();
   const password = req.body.password || '';
 
-  if (!showroomName || !slug || !adminName || !username || !password) {
+  if (!showroomName || !slug || !adminName || !username || !email || !password) {
     return res.render('signup', { error: 'عبّي كل الحقول', values: req.body });
   }
   if (!/^[a-z0-9_.]+$/.test(username)) {
     return res.render('signup', { error: 'اسم المستخدم لازم يكون حروف إنجليزية وأرقام بس', values: req.body });
+  }
+  if (!validateEmail(email)) {
+    return res.render('signup', { error: 'اكتب بريد إلكتروني صحيح — يُستخدم لاسترجاع كلمة المرور لاحقًا', values: req.body });
   }
   if (password.length < 4) {
     return res.render('signup', { error: 'كلمة المرور لازم تكون 4 خانات على الأقل', values: req.body });
@@ -133,8 +142,8 @@ app.post('/signup', (req, res) => {
   const ts = new Date().toISOString();
   // The account that creates a tenant is always its manager — every
   // subsequent account added via /users defaults to 'employee'.
-  db.prepare('INSERT INTO users (name, username, password_hash, role, is_active, created_at) VALUES (?,?,?,\'manager\',1,?)')
-    .run(adminName, username, bcrypt.hashSync(password, 10), ts);
+  db.prepare('INSERT INTO users (name, username, password_hash, role, email, is_active, created_at) VALUES (?,?,?,\'manager\',?,1,?)')
+    .run(adminName, username, bcrypt.hashSync(password, 10), email, ts);
 
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   req.session.tenantSlug = slug;
@@ -150,6 +159,80 @@ app.post('/signup', (req, res) => {
 
 app.post('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/login'));
+});
+
+// --- Password reset (email-based, self-service) ---
+// The success message is identical whether or not the tenant/username match
+// a real account with an email on file — same enumeration-prevention
+// philosophy as the generic /login error.
+const FORGOT_PASSWORD_SENT_MSG = 'لو الحساب موجود وله بريد إلكتروني مسجّل، بنرسل رابط استرجاع كلمة المرور خلال دقائق. تحقق من صندوق الوارد (ومجلد الرسائل غير المرغوبة).';
+
+app.get('/forgot-password', (req, res) => {
+  res.render('forgot-password', { error: null, sent: false, tenant: req.query.tenant || '' });
+});
+
+app.post('/forgot-password', async (req, res) => {
+  const slug = (req.body.tenant || '').trim().toLowerCase();
+  const username = (req.body.username || '').trim().toLowerCase();
+
+  const tenantMeta = tenantDb.getTenantBySlug(slug);
+  if (tenantMeta && tenantMeta.is_active) {
+    const db = tenantDb.getTenantDb(slug);
+    const user = db.prepare('SELECT * FROM users WHERE username = ? AND is_active = 1').get(username);
+    if (user && user.email) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const expires = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
+      db.prepare('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?').run(token, expires, user.id);
+      const resetUrl = `${req.protocol}://${req.get('host')}/reset-password?tenant=${encodeURIComponent(slug)}&token=${token}`;
+      await sendPasswordResetEmail(user.email, resetUrl, tenantMeta.name);
+    }
+  }
+
+  res.render('forgot-password', { error: null, sent: true, tenant: slug });
+});
+
+app.get('/reset-password', (req, res) => {
+  const slug = (req.query.tenant || '').trim().toLowerCase();
+  const token = req.query.token || '';
+  const tenantMeta = tenantDb.getTenantBySlug(slug);
+  if (!tenantMeta) {
+    return res.render('reset-password', { error: 'رابط الاسترجاع غير صالح', done: false, tenant: slug, token });
+  }
+  const db = tenantDb.getTenantDb(slug);
+  const user = db.prepare('SELECT * FROM users WHERE reset_token = ? AND reset_token_expires > ?').get(token, new Date().toISOString());
+  if (!user) {
+    return res.render('reset-password', { error: 'رابط الاسترجاع غير صالح أو منتهي — اطلب رابط جديد من صفحة "نسيت كلمة المرور"', done: false, tenant: slug, token });
+  }
+  res.render('reset-password', { error: null, done: false, tenant: slug, token });
+});
+
+app.post('/reset-password', (req, res) => {
+  const slug = (req.body.tenant || '').trim().toLowerCase();
+  const token = req.body.token || '';
+  const password = req.body.password || '';
+
+  const tenantMeta = tenantDb.getTenantBySlug(slug);
+  if (!tenantMeta) {
+    return res.render('reset-password', { error: 'رابط الاسترجاع غير صالح', done: false, tenant: slug, token });
+  }
+  const db = tenantDb.getTenantDb(slug);
+  const user = db.prepare('SELECT * FROM users WHERE reset_token = ? AND reset_token_expires > ?').get(token, new Date().toISOString());
+  if (!user) {
+    return res.render('reset-password', { error: 'رابط الاسترجاع غير صالح أو منتهي — اطلب رابط جديد من صفحة "نسيت كلمة المرور"', done: false, tenant: slug, token });
+  }
+  if (password.length < 4) {
+    return res.render('reset-password', { error: 'كلمة المرور لازم تكون 4 خانات على الأقل', done: false, tenant: slug, token });
+  }
+
+  const hash = bcrypt.hashSync(password, 10);
+  db.prepare('UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?').run(hash, user.id);
+  // Not using logActivity() here — there's no logged-in session to attribute
+  // this to, and setting req.session.userName just to reuse it would leak
+  // the reset target's name into this anonymous browser's session.
+  db.prepare(`INSERT INTO activity_log (user_name, action, entity_type, entity_id, details, created_at)
+    VALUES (?, 'استرجاع كلمة المرور', 'user', ?, ?, ?)`).run(user.name, user.id, user.name, new Date().toISOString());
+
+  res.render('reset-password', { error: null, done: true, tenant: slug, token: '' });
 });
 
 // --- System-admin routes (platform owner, fully separate from any tenant) ---
