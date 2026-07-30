@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <%- include('partials/head', { title: 'إنشاء حساب معرض جديد' }) %>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="logo-mark"></div>
+      <h1>معرض جديد</h1>
+      <p class="sub">أنشئ حساب معرضك في نظام إدارة علاقات العملاء</p>
+      <% if (error) { %>
+        <div class="flash flash-error"><%= error %></div>
+      <% } %>
+      <form method="POST" action="/signup">
+        <div class="field" style="text-align:right">
+          <label>اسم المعرض</label>
+          <input type="text" name="showroom_name" value="<%= values.showroom_name || '' %>" required autofocus>
+        </div>
+        <div class="field" style="text-align:right">
+          <label>رمز المعرض (حروف إنجليزية وأرقام، يُستخدم عند تسجيل الدخول)</label>
+          <input type="text" name="slug" value="<%= values.slug || '' %>" required autocapitalize="off" autocorrect="off" pattern="[a-z0-9-]+">
+        </div>
+        <div class="field" style="text-align:right">
+          <label>اسمك (المدير)</label>
+          <input type="text" name="admin_name" value="<%= values.admin_name || '' %>" required>
+        </div>
+        <div class="field" style="text-align:right">
+          <label>اسم المستخدم</label>
+          <input type="text" name="username" value="<%= values.username || '' %>" required autocapitalize="off" autocorrect="off">
+        </div>
+        <div class="field" style="text-align:right">
+          <label>كلمة المرور</label>
+          <input type="password" name="password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">إنشاء الحساب</button>
+      </form>
+      <p class="sub" style="margin-top:16px">عندك حساب؟ <a href="/login">تسجيل الدخول</a></p>
+    </div>
+  </div>
+</body>
+</html>

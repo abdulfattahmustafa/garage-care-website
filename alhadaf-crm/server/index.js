@@ -1,25 +1,44 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 
-const db = require('./db'); // ensure DB + schema are initialized
+const tenantDb = require('./tenantDb');
 const { logActivity } = require('./lib/activity');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const APP_PASSWORD = process.env.APP_PASSWORD || 'alhadaf2026';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'alhadaf-crm-secret';
 
-// First run: seed a single "المدير" account from APP_PASSWORD so the
-// existing shared-password owners can still log in immediately, then
-// create named accounts for staff from the "المستخدمون" page.
-const hasAnyUser = db.prepare('SELECT 1 FROM users LIMIT 1').get();
-if (!hasAnyUser) {
-  db.prepare('INSERT INTO users (name, username, password_hash, is_active, created_at) VALUES (?,?,?,1,?)')
-    .run('المدير', 'admin', bcrypt.hashSync(APP_PASSWORD, 10), new Date().toISOString());
+// One-time transition for installs that ran the earlier single-showroom
+// version of this app: if an old data/alhadaf.db exists and no tenant has
+// been registered yet, adopt it as the first tenant instead of orphaning
+// whatever real data was already entered.
+function migrateLegacySingleTenantIfNeeded() {
+  const legacyDbPath = path.join(tenantDb.baseDataDir, 'alhadaf.db');
+  const alreadyHasTenants = tenantDb.listTenants().length > 0;
+  if (!fs.existsSync(legacyDbPath) || alreadyHasTenants) return;
+
+  const slug = 'alhadaf';
+  const dir = path.join(tenantDb.baseDataDir, 'tenants', slug);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.copyFileSync(legacyDbPath, path.join(dir, 'data.db'));
+  ['-wal', '-shm'].forEach(suffix => {
+    const p = legacyDbPath + suffix;
+    if (fs.existsSync(p)) fs.copyFileSync(p, path.join(dir, 'data.db' + suffix));
+  });
+  const legacyUploads = path.join(tenantDb.baseDataDir, 'uploads');
+  if (fs.existsSync(legacyUploads)) {
+    fs.cpSync(legacyUploads, path.join(dir, 'uploads'), { recursive: true });
+  }
+
+  tenantDb.registerLegacyTenant(slug, 'معرض الهدف الأميز');
+  console.log(`\n📦 لقينا بيانات من نسخة سابقة — تم نقلها تلقائيًا. رمز الدخول الجديد لمعرضك: "${slug}"\n`);
 }
+
+migrateLegacySingleTenantIfNeeded();
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
@@ -36,30 +55,85 @@ app.use(session({
 }));
 
 function requireAuth(req, res, next) {
-  if (req.session && req.session.userId) return next();
+  if (req.session && req.session.userId && req.session.tenantSlug) return next();
   return res.redirect('/login');
 }
 
 app.locals.util = require('./lib/util');
 
-// --- Auth routes ---
+// --- Public routes (no tenant/session yet) ---
 app.get('/login', (req, res) => {
   if (req.session && req.session.userId) return res.redirect('/');
-  res.render('login', { error: null });
+  res.render('login', { error: null, tenant: req.query.tenant || '' });
 });
 
 app.post('/login', (req, res) => {
+  const slug = (req.body.tenant || '').trim().toLowerCase();
   const username = (req.body.username || '').trim().toLowerCase();
   const password = req.body.password || '';
-  const user = db.prepare('SELECT * FROM users WHERE username = ? AND is_active = 1').get(username);
+  const genericError = 'رمز المعرض أو اسم المستخدم أو كلمة المرور غير صحيح';
 
-  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
-    return res.render('login', { error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+  const tenantMeta = tenantDb.getTenantBySlug(slug);
+  if (!tenantMeta || !tenantMeta.is_active) {
+    return res.render('login', { error: genericError, tenant: slug });
   }
 
+  const db = tenantDb.getTenantDb(slug);
+  const user = db.prepare('SELECT * FROM users WHERE username = ? AND is_active = 1').get(username);
+  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    return res.render('login', { error: genericError, tenant: slug });
+  }
+
+  req.session.tenantSlug = slug;
+  req.session.tenantName = tenantMeta.name;
   req.session.userId = user.id;
   req.session.userName = user.name;
+
+  req.db = db;
   logActivity(req, 'تسجيل دخول', {});
+  res.redirect('/');
+});
+
+app.get('/signup', (req, res) => {
+  res.render('signup', { error: null, values: {} });
+});
+
+app.post('/signup', (req, res) => {
+  const showroomName = (req.body.showroom_name || '').trim();
+  const slug = (req.body.slug || '').trim().toLowerCase();
+  const adminName = (req.body.admin_name || '').trim();
+  const username = (req.body.username || '').trim().toLowerCase();
+  const password = req.body.password || '';
+
+  if (!showroomName || !slug || !adminName || !username || !password) {
+    return res.render('signup', { error: 'عبّي كل الحقول', values: req.body });
+  }
+  if (!/^[a-z0-9_.]+$/.test(username)) {
+    return res.render('signup', { error: 'اسم المستخدم لازم يكون حروف إنجليزية وأرقام بس', values: req.body });
+  }
+  if (password.length < 4) {
+    return res.render('signup', { error: 'كلمة المرور لازم تكون 4 خانات على الأقل', values: req.body });
+  }
+
+  let db;
+  try {
+    db = tenantDb.createTenant(slug, showroomName);
+  } catch (err) {
+    return res.render('signup', { error: err.message, values: req.body });
+  }
+
+  const ts = new Date().toISOString();
+  db.prepare('INSERT INTO users (name, username, password_hash, is_active, created_at) VALUES (?,?,?,1,?)')
+    .run(adminName, username, bcrypt.hashSync(password, 10), ts);
+
+  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+  req.session.tenantSlug = slug;
+  req.session.tenantName = showroomName;
+  req.session.userId = user.id;
+  req.session.userName = user.name;
+
+  req.db = db;
+  logActivity(req, 'إنشاء المعرض', { details: showroomName });
   res.redirect('/');
 });
 
@@ -71,8 +145,11 @@ app.post('/logout', (req, res) => {
 app.use(requireAuth);
 
 app.use((req, res, next) => {
+  req.db = tenantDb.getTenantDb(req.session.tenantSlug);
+  req.tenantSlug = req.session.tenantSlug;
   res.locals.currentUserName = req.session.userName;
   res.locals.currentUserId = req.session.userId;
+  res.locals.tenantName = req.session.tenantName;
   next();
 });
 
@@ -91,6 +168,6 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n✅ نظام إدارة علاقات العملاء - معرض الهدف الأميز يعمل الآن`);
+  console.log(`\n✅ نظام إدارة علاقات العملاء يعمل الآن (متعدد المعارض)`);
   console.log(`🔗 افتح المتصفح على: http://localhost:${PORT}\n`);
 });

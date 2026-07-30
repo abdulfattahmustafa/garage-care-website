@@ -1,19 +1,40 @@
-const db = require('./db');
+const tenantDb = require('./tenantDb');
 
 const isClear = process.argv.includes('--clear');
+const slugArg = process.argv.slice(2).find(a => !a.startsWith('--'));
+
+function resolveSlug() {
+  if (slugArg) return slugArg;
+  const tenants = tenantDb.listTenants();
+  if (tenants.length === 1) return tenants[0].slug;
+  console.log('\n⚠️  فيه أكثر من معرض مسجّل — لازم تحدد رمز المعرض:');
+  console.log('   npm run seed -- <رمز-المعرض>');
+  console.log('\nالمعارض المسجّلة حاليًا:');
+  tenants.forEach(t => console.log(`   - ${t.slug} (${t.name})`));
+  console.log('');
+  process.exit(1);
+}
+
+const slug = resolveSlug();
+const tenantMeta = tenantDb.getTenantBySlug(slug);
+if (!tenantMeta) {
+  console.log(`\n❌ ما فيه معرض برمز "${slug}"\n`);
+  process.exit(1);
+}
+const db = tenantDb.getTenantDb(slug);
 
 if (isClear) {
   const c1 = db.prepare('DELETE FROM customers WHERE is_demo = 1').run();
   const c2 = db.prepare('DELETE FROM salespeople WHERE is_demo = 1').run();
   const c3 = db.prepare('DELETE FROM car_inventory WHERE is_demo = 1').run();
   const c4 = db.prepare('DELETE FROM prospects WHERE is_demo = 1').run();
-  console.log(`\n✅ تم حذف ${c1.changes} عميل تجريبي، ${c2.changes} بائع تجريبي، ${c3.changes} سيارة تجريبية، ${c4.changes} عميل محتمل تجريبي. البيانات الحقيقية لم تُمس.\n`);
+  console.log(`\n✅ [${slug}] تم حذف ${c1.changes} عميل تجريبي، ${c2.changes} بائع تجريبي، ${c3.changes} سيارة تجريبية، ${c4.changes} عميل محتمل تجريبي. البيانات الحقيقية لم تُمس.\n`);
   process.exit(0);
 }
 
 const existingDemo = db.prepare('SELECT COUNT(*) c FROM customers WHERE is_demo = 1').get().c;
 if (existingDemo > 0) {
-  console.log('\nℹ️  البيانات التجريبية موجودة أصلاً. لإعادة إنشائها شغّل: npm run clear-demo ثم npm run seed\n');
+  console.log(`\nℹ️  [${slug}] البيانات التجريبية موجودة أصلاً. لإعادة إنشائها شغّل: npm run clear-demo -- ${slug} ثم npm run seed -- ${slug}\n`);
   process.exit(0);
 }
 
@@ -155,5 +176,5 @@ const prospectIds = demoProspects.map(p => insertProspect.run(
 insertProspectLog.run(prospectIds[0], iso(daysAgo(2)), 'زيارة', 'زار المعرض وشاف كورولا 2026', ts);
 insertProspectLog.run(prospectIds[1], iso(daysAgo(1)), 'زيارة', 'جربت السيارة وعجبتها، بترجع الأسبوع الجاي', ts);
 
-console.log(`\n✅ تمت إضافة ${demoCustomers.length} عملاء تجريبيين، ${demoProspects.length} عملاء محتملين تجريبيين، + سجل تواصل تجريبي.`);
-console.log('   لحذف البيانات التجريبية قبل إدخال بياناتك الحقيقية شغّل: npm run clear-demo\n');
+console.log(`\n✅ [${slug}] تمت إضافة ${demoCustomers.length} عملاء تجريبيين، ${demoProspects.length} عملاء محتملين تجريبيين، + سجل تواصل تجريبي.`);
+console.log(`   لحذف البيانات التجريبية قبل إدخال بياناتك الحقيقية شغّل: npm run clear-demo -- ${slug}\n`);

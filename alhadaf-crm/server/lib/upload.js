@@ -1,11 +1,6 @@
-const path = require('path');
-const fs = require('fs');
 const crypto = require('crypto');
 const multer = require('multer');
-const db = require('../db');
-
-const uploadsDir = path.join(db.dataDir, 'uploads');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+const tenantDb = require('../tenantDb');
 
 // Only a small allow-list of document/image types — never trust the
 // client-supplied filename or extension, only the sniffed mimetype, and
@@ -18,7 +13,9 @@ const ALLOWED_TYPES = {
 };
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
+  // Resolved per-request so each showroom's files land in its own
+  // tenant folder — never a shared uploads directory.
+  destination: (req, file, cb) => cb(null, tenantDb.getUploadsDir(req.tenantSlug)),
   filename: (req, file, cb) => {
     const ext = ALLOWED_TYPES[file.mimetype] || '';
     cb(null, crypto.randomBytes(16).toString('hex') + ext);
@@ -51,4 +48,4 @@ function uploadSingle(field, onError) {
   };
 }
 
-module.exports = { upload, uploadSingle, uploadsDir };
+module.exports = { upload, uploadSingle, getUploadsDir: tenantDb.getUploadsDir };

@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
 
 const PAGE_SIZE = 40;
 
 router.get('/', (req, res) => {
+  const db = req.db;
   const { q = '', user = '' } = req.query;
   const page = Math.max(1, parseInt(req.query.page) || 1);
 

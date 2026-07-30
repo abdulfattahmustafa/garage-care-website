@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
 const { isReportOverdue, isFollowupDue, reportDeadlineISO, fmtDate } = require('../lib/util');
 
 router.get('/', (req, res) => {
+  const db = req.db;
   const now = new Date();
   const thisMonth = now.toISOString().slice(0, 7);
   const thisYear = now.toISOString().slice(0, 4);
@@ -35,7 +35,7 @@ router.get('/', (req, res) => {
     return diffDays >= 0 && diffDays <= 7;
   });
 
-  let waLines = ['*تذكير مستحقات - معرض الهدف الأميز*', ''];
+  let waLines = [`*تذكير مستحقات - ${req.session.tenantName || 'المعرض'}*`, ''];
   if (dueFollowups.length) {
     waLines.push(`📞 متابعة ما بعد بيع متأخرة (${dueFollowups.length}):`);
     dueFollowups.slice(0, 15).forEach(c => waLines.push(`- ${c.customer_name} (${c.car_type}) - جوال: ${c.phone || '—'}`));

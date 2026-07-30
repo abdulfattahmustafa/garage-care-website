@@ -10,7 +10,7 @@
     <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:16px">
       <div class="section-title" style="margin:0"><span class="bar"></span> <%= customer.customer_name %></div>
       <div style="display:flex; gap:8px; flex-wrap:wrap">
-        <% const waText = encodeURIComponent(`مرحباً ${customer.customer_name}، معك معرض الهدف الأميز بخصوص سيارتك ${customer.car_type}. `); %>
+        <% const waText = encodeURIComponent(`مرحباً ${customer.customer_name}، معك ${typeof tenantName !== 'undefined' && tenantName ? tenantName : 'المعرض'} بخصوص سيارتك ${customer.car_type}. `); %>
         <% if (customer.phone) { %>
           <a class="btn btn-wa btn-sm" target="_blank" href="https://wa.me/966<%= customer.phone.replace(/^0/,'') %>?text=<%= waText %>">📲 واتساب</a>
         <% } %>

@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
 const { logActivity } = require('../lib/activity');
 
 router.get('/', (req, res) => {
+  const db = req.db;
   const cars = db.prepare('SELECT * FROM car_inventory ORDER BY brand, model, year, trim, color').all();
   res.render('cars', { cars, error: req.query.error || null });
 });
 
 router.post('/', (req, res) => {
+  const db = req.db;
   const brand = (req.body.brand || '').trim();
   const model = (req.body.model || '').trim();
   const year = (req.body.year || '').trim();
@@ -33,6 +34,7 @@ router.post('/', (req, res) => {
 });
 
 router.post('/:id/delete', (req, res) => {
+  const db = req.db;
   const car = db.prepare('SELECT * FROM car_inventory WHERE id = ?').get(req.params.id);
   db.prepare('DELETE FROM car_inventory WHERE id = ?').run(req.params.id);
   if (car) logActivity(req, 'حذف سيارة من الكتالوج', { entityType: 'car', entityId: req.params.id, details: `${car.brand} ${car.model} ${car.year} ${car.trim} - ${car.color}` });

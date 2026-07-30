@@ -1,15 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const db = require('../db');
 const { logActivity } = require('../lib/activity');
 
 router.get('/', (req, res) => {
+  const db = req.db;
   const users = db.prepare('SELECT id, name, username, is_active, created_at FROM users ORDER BY name').all();
   res.render('users', { users, error: req.query.error || null });
 });
 
 router.post('/', (req, res) => {
+  const db = req.db;
   const name = (req.body.name || '').trim();
   const username = (req.body.username || '').trim().toLowerCase();
   const password = req.body.password || '';
@@ -36,6 +37,7 @@ router.post('/', (req, res) => {
 });
 
 router.post('/:id/toggle', (req, res) => {
+  const db = req.db;
   if (String(req.params.id) === String(req.session.userId)) {
     return res.redirect('/users?error=' + encodeURIComponent('ما تقدر تعطّل حسابك انت نفسك وأنت داخل فيه'));
   }
@@ -47,6 +49,7 @@ router.post('/:id/toggle', (req, res) => {
 });
 
 router.post('/:id/reset-password', (req, res) => {
+  const db = req.db;
   const password = req.body.password || '';
   if (password.length < 4) {
     return res.redirect('/users?error=' + encodeURIComponent('كلمة المرور لازم تكون 4 خانات على الأقل'));
@@ -60,6 +63,7 @@ router.post('/:id/reset-password', (req, res) => {
 });
 
 router.post('/:id/delete', (req, res) => {
+  const db = req.db;
   if (String(req.params.id) === String(req.session.userId)) {
     return res.redirect('/users?error=' + encodeURIComponent('ما تقدر تحذف حسابك انت نفسك وأنت داخل فيه'));
   }

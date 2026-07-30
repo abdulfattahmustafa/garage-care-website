@@ -7,15 +7,19 @@
   <div class="login-wrap">
     <div class="login-card">
       <div class="logo-mark"></div>
-      <h1>معرض الهدف الأميز</h1>
-      <p class="sub">نظام إدارة علاقات العملاء</p>
+      <h1>نظام إدارة علاقات العملاء</h1>
+      <p class="sub">تسجيل الدخول لمعرضك</p>
       <% if (error) { %>
         <div class="flash flash-error"><%= error %></div>
       <% } %>
       <form method="POST" action="/login">
         <div class="field" style="text-align:right">
+          <label>رمز المعرض</label>
+          <input type="text" name="tenant" value="<%= tenant %>" required autofocus autocapitalize="off" autocorrect="off">
+        </div>
+        <div class="field" style="text-align:right">
           <label>اسم المستخدم</label>
-          <input type="text" name="username" required autofocus autocapitalize="off" autocorrect="off">
+          <input type="text" name="username" required autocapitalize="off" autocorrect="off">
         </div>
         <div class="field" style="text-align:right">
           <label>كلمة المرور</label>
@@ -23,6 +27,7 @@
         </div>
         <button type="submit" class="btn btn-primary">دخول</button>
       </form>
+      <p class="sub" style="margin-top:16px">معرض جديد؟ <a href="/signup">أنشئ حساب معرضك</a></p>
     </div>
   </div>
 </body>

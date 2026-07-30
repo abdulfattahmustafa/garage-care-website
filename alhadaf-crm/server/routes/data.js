@@ -4,7 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const { Parser } = require('json2csv');
 const ExcelJS = require('exceljs');
-const db = require('../db');
 const { isReportOverdue, isFollowupDue, fmtDate } = require('../lib/util');
 
 const CSV_FIELDS = [
@@ -27,6 +26,7 @@ const CSV_FIELDS = [
 // Export to CSV (opens correctly in Excel with UTF-8 BOM), respects the same
 // filters used on the customers list page so a filtered search can be exported.
 router.get('/export.csv', (req, res) => {
+  const db = req.db;
   const { q = '', payment_method = '', salesperson = '', month = '', status = '' } = req.query;
   let where = [];
   let params = {};
@@ -43,7 +43,7 @@ router.get('/export.csv', (req, res) => {
   const csv = parser.parse(rows);
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="alhadaf-customers-${new Date().toISOString().slice(0,10)}.csv"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${req.tenantSlug}-customers-${new Date().toISOString().slice(0,10)}.csv"`);
   res.send('﻿' + csv); // BOM so Excel renders Arabic correctly
 });
 
@@ -52,6 +52,8 @@ router.get('/export.csv', (req, res) => {
 // and reads directly, as opposed to backup.json which is a technical file
 // only meant to be re-imported via the "استعادة" (restore) page.
 router.get('/export.xlsx', async (req, res) => {
+  const db = req.db;
+  const tenantName = req.session.tenantName || 'المعرض';
   const CHARCOAL = 'FF17181A';
   const GOLD = 'FFBD8E54';
   const GOLD_LIGHT = 'FFD9B98A';
@@ -78,7 +80,7 @@ router.get('/export.xlsx', async (req, res) => {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'alhadaf-crm';
   wb.created = now;
-  const ws = wb.addWorksheet('عملاء الهدف الأميز', { views: [{ rightToLeft: true }] });
+  const ws = wb.addWorksheet('عملاء ' + tenantName, { views: [{ rightToLeft: true }] });
   widths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
 
   let r = 1;
@@ -86,7 +88,7 @@ router.get('/export.xlsx', async (req, res) => {
   // ---- Title ----
   ws.mergeCells(r, 1, r, colCount);
   const title = ws.getCell(r, 1);
-  title.value = 'نظام إدارة علاقات العملاء - معرض الهدف الأميز';
+  title.value = `نظام إدارة علاقات العملاء - ${tenantName}`;
   title.font = { name: 'Arial', size: 16, bold: true, color: { argb: GOLD_LIGHT } };
   title.alignment = { horizontal: 'center', vertical: 'middle' };
   title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CHARCOAL } };
@@ -170,12 +172,13 @@ router.get('/export.xlsx', async (req, res) => {
   ws.views = [{ state: 'frozen', ySplit: headerRowIndex, rightToLeft: true }];
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename="alhadaf-crm-report-${now.toISOString().slice(0, 10)}.xlsx"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${req.tenantSlug}-crm-report-${now.toISOString().slice(0, 10)}.xlsx"`);
   await wb.xlsx.write(res);
   res.end();
 });
 
 router.get('/backup.json', (req, res) => {
+  const db = req.db;
   const customers = db.prepare('SELECT * FROM customers').all();
   const contact_log = db.prepare('SELECT * FROM contact_log').all();
   const sop = db.prepare('SELECT * FROM sop').all();
@@ -187,7 +190,7 @@ router.get('/backup.json', (req, res) => {
   const payload = { exported_at: new Date().toISOString(), customers, contact_log, sop, salespeople, car_inventory, prospects, prospect_log, users };
 
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="alhadaf-crm-backup-${new Date().toISOString().slice(0,10)}.json"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${req.tenantSlug}-crm-backup-${new Date().toISOString().slice(0,10)}.json"`);
   res.send(JSON.stringify(payload, null, 2));
 });
 
@@ -196,6 +199,7 @@ router.get('/restore', (req, res) => {
 });
 
 router.post('/restore', (req, res) => {
+  const db = req.db;
   try {
     const payload = req.body;
     if (!payload || !Array.isArray(payload.customers)) {

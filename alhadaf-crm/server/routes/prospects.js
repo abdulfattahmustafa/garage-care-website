@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
 const { logActivity } = require('../lib/activity');
 const { validatePhone } = require('../lib/util');
 
@@ -10,7 +9,7 @@ const PAGE_SIZE = 20;
 
 function nowISO() { return new Date().toISOString(); }
 
-function getSalespeople() {
+function getSalespeople(db) {
   return db.prepare(`
     SELECT name FROM salespeople
     UNION
@@ -20,6 +19,7 @@ function getSalespeople() {
 }
 
 router.get('/', (req, res) => {
+  const db = req.db;
   const { q = '', stage = '', salesperson = '' } = req.query;
   const page = Math.max(1, parseInt(req.query.page) || 1);
 
@@ -40,12 +40,12 @@ router.get('/', (req, res) => {
   res.render('prospects/list', {
     rows, total, totalPages, page: safePage,
     q, stage, salesperson,
-    STAGES, salespeople: getSalespeople(),
+    STAGES, salespeople: getSalespeople(db),
   });
 });
 
 router.get('/new', (req, res) => {
-  res.render('prospects/form', { prospect: null, errors: {}, STAGES, SOURCES, salespeople: getSalespeople() });
+  res.render('prospects/form', { prospect: null, errors: {}, STAGES, SOURCES, salespeople: getSalespeople(req.db) });
 });
 
 function validateBody(body) {
@@ -56,10 +56,11 @@ function validateBody(body) {
 }
 
 router.post('/', (req, res) => {
+  const db = req.db;
   const body = req.body;
   const errors = validateBody(body);
   if (Object.keys(errors).length) {
-    return res.status(400).render('prospects/form', { prospect: body, errors, STAGES, SOURCES, salespeople: getSalespeople() });
+    return res.status(400).render('prospects/form', { prospect: body, errors, STAGES, SOURCES, salespeople: getSalespeople(db) });
   }
 
   const ts = nowISO();
@@ -83,6 +84,7 @@ router.post('/', (req, res) => {
 });
 
 router.get('/:id', (req, res) => {
+  const db = req.db;
   const prospect = db.prepare('SELECT * FROM prospects WHERE id = ?').get(req.params.id);
   if (!prospect) return res.status(404).render('404');
   const logs = db.prepare('SELECT * FROM prospect_log WHERE prospect_id = ? ORDER BY contact_date DESC, id DESC').all(prospect.id);
@@ -90,19 +92,21 @@ router.get('/:id', (req, res) => {
 });
 
 router.get('/:id/edit', (req, res) => {
+  const db = req.db;
   const prospect = db.prepare('SELECT * FROM prospects WHERE id = ?').get(req.params.id);
   if (!prospect) return res.status(404).render('404');
-  res.render('prospects/form', { prospect, errors: {}, STAGES, SOURCES, salespeople: getSalespeople() });
+  res.render('prospects/form', { prospect, errors: {}, STAGES, SOURCES, salespeople: getSalespeople(db) });
 });
 
 router.post('/:id', (req, res) => {
+  const db = req.db;
   const existing = db.prepare('SELECT * FROM prospects WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).render('404');
 
   const body = req.body;
   const errors = validateBody(body);
   if (Object.keys(errors).length) {
-    return res.status(400).render('prospects/form', { prospect: { ...body, id: req.params.id }, errors, STAGES, SOURCES, salespeople: getSalespeople() });
+    return res.status(400).render('prospects/form', { prospect: { ...body, id: req.params.id }, errors, STAGES, SOURCES, salespeople: getSalespeople(db) });
   }
 
   db.prepare(`UPDATE prospects SET
@@ -125,6 +129,7 @@ router.post('/:id', (req, res) => {
 });
 
 router.post('/:id/delete', (req, res) => {
+  const db = req.db;
   const prospect = db.prepare('SELECT name FROM prospects WHERE id = ?').get(req.params.id);
   db.prepare('DELETE FROM prospects WHERE id = ?').run(req.params.id);
   if (prospect) logActivity(req, 'حذف عميل محتمل', { entityType: 'prospect', entityId: req.params.id, details: prospect.name });
@@ -132,6 +137,7 @@ router.post('/:id/delete', (req, res) => {
 });
 
 router.post('/:id/contact', (req, res) => {
+  const db = req.db;
   const { contact_date, type, note } = req.body;
   db.prepare('INSERT INTO prospect_log (prospect_id, contact_date, type, note, created_at) VALUES (?,?,?,?,?)')
     .run(req.params.id, contact_date || nowISO().slice(0, 10), type || null, note || null, nowISO());

@@ -2,10 +2,9 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const router = express.Router();
-const db = require('../db');
 const { validateNationalId, validateVin, validatePhone, isReportOverdue } = require('../lib/util');
 const { logActivity } = require('../lib/activity');
-const { uploadSingle, uploadsDir } = require('../lib/upload');
+const { uploadSingle, getUploadsDir } = require('../lib/upload');
 
 const PAYMENT_METHODS = ['نقدي', 'تمويل (إيجار تمويلي)', 'مرابحة', 'شركات', 'جهات حكومية'];
 const STATUSES = ['جديد', 'تم التسليم', 'تمت المتابعة', 'عميل متكرر'];
@@ -16,7 +15,7 @@ function nowISO() { return new Date().toISOString(); }
 // Merges the managed list (Settings page) with any older free-text names
 // already used on existing customer records, so past records never
 // disappear from filters even after someone is removed from Settings.
-function getSalespeople() {
+function getSalespeople(db) {
   return db.prepare(`
     SELECT name FROM salespeople
     UNION
@@ -25,12 +24,13 @@ function getSalespeople() {
     .all().map(r => r.name);
 }
 
-function getCarInventory() {
+function getCarInventory(db) {
   return db.prepare('SELECT * FROM car_inventory ORDER BY brand, model, year, trim, color').all();
 }
 
 // --- List with search / filter / sort / pagination ---
 router.get('/', (req, res) => {
+  const db = req.db;
   const { q = '', payment_method = '', salesperson = '', month = '', status = '' } = req.query;
   const sortCol = ['sale_date', 'customer_name', 'car_type', 'price', 'status'].includes(req.query.sort) ? req.query.sort : 'sale_date';
   const dir = req.query.dir === 'asc' ? 'ASC' : 'DESC';
@@ -61,12 +61,13 @@ router.get('/', (req, res) => {
     rows, total, totalPages, page: safePage,
     q, payment_method, salesperson, month, status,
     sort: sortCol, dir: dir.toLowerCase(),
-    PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(),
+    PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(db),
     isReportOverdue,
   });
 });
 
 router.get('/new', (req, res) => {
+  const db = req.db;
   let prefill = null;
   if (req.query.from_prospect) {
     const prospect = db.prepare('SELECT * FROM prospects WHERE id = ?').get(req.query.from_prospect);
@@ -80,7 +81,7 @@ router.get('/new', (req, res) => {
       };
     }
   }
-  res.render('customers/form', { customer: prefill, errors: {}, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(), carInventory: getCarInventory() });
+  res.render('customers/form', { customer: prefill, errors: {}, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
 });
 
 function validateBody(body) {
@@ -97,6 +98,7 @@ function validateBody(body) {
 }
 
 router.post('/', (req, res) => {
+  const db = req.db;
   const body = req.body;
   const errors = validateBody(body);
 
@@ -110,7 +112,7 @@ router.post('/', (req, res) => {
   }
 
   if (Object.keys(errors).length) {
-    return res.status(400).render('customers/form', { customer: body, errors, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(), carInventory: getCarInventory() });
+    return res.status(400).render('customers/form', { customer: body, errors, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
   }
 
   const ts = nowISO();
@@ -149,6 +151,7 @@ router.post('/', (req, res) => {
 });
 
 router.get('/:id', (req, res) => {
+  const db = req.db;
   const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   if (!customer) return res.status(404).render('404');
   const contacts = db.prepare('SELECT * FROM contact_log WHERE customer_id = ? ORDER BY contact_date DESC, id DESC').all(customer.id);
@@ -157,12 +160,14 @@ router.get('/:id', (req, res) => {
 });
 
 router.get('/:id/edit', (req, res) => {
+  const db = req.db;
   const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   if (!customer) return res.status(404).render('404');
-  res.render('customers/form', { customer, errors: {}, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(), carInventory: getCarInventory() });
+  res.render('customers/form', { customer, errors: {}, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
 });
 
 router.post('/:id', (req, res) => {
+  const db = req.db;
   const existing = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).render('404');
 
@@ -179,7 +184,7 @@ router.post('/:id', (req, res) => {
   }
 
   if (Object.keys(errors).length) {
-    return res.status(400).render('customers/form', { customer: { ...body, id: req.params.id }, errors, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(), carInventory: getCarInventory() });
+    return res.status(400).render('customers/form', { customer: { ...body, id: req.params.id }, errors, PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
   }
 
   db.prepare(`UPDATE customers SET
@@ -211,15 +216,18 @@ router.post('/:id', (req, res) => {
 });
 
 router.post('/:id/delete', (req, res) => {
+  const db = req.db;
   const customer = db.prepare('SELECT customer_name FROM customers WHERE id = ?').get(req.params.id);
   const files = db.prepare('SELECT stored_name FROM attachments WHERE customer_id = ?').all(req.params.id);
   db.prepare('DELETE FROM customers WHERE id = ?').run(req.params.id); // cascades to attachments/contact_log rows
+  const uploadsDir = getUploadsDir(req.tenantSlug);
   files.forEach(f => fs.unlink(path.join(uploadsDir, f.stored_name), () => {}));
   if (customer) logActivity(req, 'حذف عميل', { entityType: 'customer', entityId: req.params.id, details: customer.customer_name });
   res.redirect('/customers');
 });
 
 router.post('/:id/contact', (req, res) => {
+  const db = req.db;
   const { contact_date, type, note } = req.body;
   db.prepare('INSERT INTO contact_log (customer_id, contact_date, type, note, created_at) VALUES (?,?,?,?,?)')
     .run(req.params.id, contact_date || nowISO().slice(0, 10), type || null, note || null, nowISO());
@@ -228,6 +236,7 @@ router.post('/:id/contact', (req, res) => {
 });
 
 router.post('/:id/followup', (req, res) => {
+  const db = req.db;
   const { followup_result, followup_note } = req.body;
   db.prepare(`UPDATE customers SET followup_done=1, followup_result=?, followup_note=?, followup_at=?, updated_by=?, updated_at=? WHERE id=?`)
     .run(followup_result || null, followup_note || null, nowISO(), req.session.userName, nowISO(), req.params.id);
@@ -236,6 +245,7 @@ router.post('/:id/followup', (req, res) => {
 });
 
 router.post('/:id/report', (req, res) => {
+  const db = req.db;
   const customer = db.prepare('SELECT reported FROM customers WHERE id = ?').get(req.params.id);
   const newVal = customer.reported ? 0 : 1;
   db.prepare(`UPDATE customers SET reported=?, reported_at=?, updated_by=?, updated_at=? WHERE id=?`)
@@ -247,6 +257,7 @@ router.post('/:id/report', (req, res) => {
 router.post('/:id/attachments',
   uploadSingle('file', (req, res, message) => res.redirect(`/customers/${req.params.id}?error=${encodeURIComponent(message)}`)),
   (req, res) => {
+    const db = req.db;
     if (!req.file) {
       return res.redirect(`/customers/${req.params.id}?error=${encodeURIComponent('اختر ملف أولاً')}`);
     }
@@ -259,15 +270,17 @@ router.post('/:id/attachments',
   });
 
 router.get('/:id/attachments/:attId/download', (req, res) => {
+  const db = req.db;
   const att = db.prepare('SELECT * FROM attachments WHERE id = ? AND customer_id = ?').get(req.params.attId, req.params.id);
   if (!att) return res.status(404).render('404');
-  res.download(path.join(uploadsDir, att.stored_name), att.original_name);
+  res.download(path.join(getUploadsDir(req.tenantSlug), att.stored_name), att.original_name);
 });
 
 router.post('/:id/attachments/:attId/delete', (req, res) => {
+  const db = req.db;
   const att = db.prepare('SELECT * FROM attachments WHERE id = ? AND customer_id = ?').get(req.params.attId, req.params.id);
   if (att) {
-    fs.unlink(path.join(uploadsDir, att.stored_name), () => {});
+    fs.unlink(path.join(getUploadsDir(req.tenantSlug), att.stored_name), () => {});
     db.prepare('DELETE FROM attachments WHERE id = ?').run(att.id);
     logActivity(req, 'حذف مرفق', { entityType: 'customer', entityId: req.params.id, details: att.label });
   }

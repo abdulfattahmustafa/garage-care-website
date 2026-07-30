@@ -1,19 +1,12 @@
-const path = require('path');
-const fs = require('fs');
-const { DatabaseSync } = require('node:sqlite'); // built into Node (22.5+) - no native compiler needed
+// Creates/migrates the full per-tenant schema on a given DatabaseSync
+// connection. Called once per tenant database (see server/tenantDb.js) —
+// every tenant gets its own file with this exact same schema, which is
+// what gives tenants real (file-level) data isolation from each other.
+function initSchema(db, { tenantName } = {}) {
+  db.exec('PRAGMA journal_mode = WAL');
+  db.exec('PRAGMA foreign_keys = ON');
 
-// DATA_DIR lets a hosting provider point this at a persistent disk mount
-// (e.g. Render) instead of the app folder, which may be wiped on redeploy.
-const dataDir = process.env.DATA_DIR
-  ? path.resolve(process.env.DATA_DIR)
-  : path.join(__dirname, '..', 'data');
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-
-const db = new DatabaseSync(path.join(dataDir, 'alhadaf.db'));
-db.exec('PRAGMA journal_mode = WAL');
-db.exec('PRAGMA foreign_keys = ON');
-
-db.exec(`
+  db.exec(`
 CREATE TABLE IF NOT EXISTS car_inventory (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   brand TEXT NOT NULL,
@@ -141,53 +134,55 @@ CREATE INDEX IF NOT EXISTS idx_prospect_log_prospect ON prospect_log(prospect_id
 CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
 `);
 
-// Migration for installs created before car_inventory existed: CREATE TABLE
-// IF NOT EXISTS above won't add a column to an already-existing customers table.
-const customerCols = db.prepare("PRAGMA table_info(customers)").all().map(c => c.name);
-if (!customerCols.includes('car_inventory_id')) {
-  db.exec('ALTER TABLE customers ADD COLUMN car_inventory_id INTEGER REFERENCES car_inventory(id) ON DELETE SET NULL');
-}
-if (!customerCols.includes('created_by')) {
-  db.exec('ALTER TABLE customers ADD COLUMN created_by TEXT');
-}
-if (!customerCols.includes('updated_by')) {
-  db.exec('ALTER TABLE customers ADD COLUMN updated_by TEXT');
-}
+  // Migration for tenant databases created before car_inventory/created_by
+  // existed: CREATE TABLE IF NOT EXISTS above won't add a column to an
+  // already-existing customers table.
+  const customerCols = db.prepare("PRAGMA table_info(customers)").all().map(c => c.name);
+  if (!customerCols.includes('car_inventory_id')) {
+    db.exec('ALTER TABLE customers ADD COLUMN car_inventory_id INTEGER REFERENCES car_inventory(id) ON DELETE SET NULL');
+  }
+  if (!customerCols.includes('created_by')) {
+    db.exec('ALTER TABLE customers ADD COLUMN created_by TEXT');
+  }
+  if (!customerCols.includes('updated_by')) {
+    db.exec('ALTER TABLE customers ADD COLUMN updated_by TEXT');
+  }
 
-// Migration for car_inventory created before "trim" (الفئة) existed. A plain
-// ALTER TABLE ADD COLUMN can't also widen the old UNIQUE(brand,model,year,color)
-// constraint to include trim, so the table is rebuilt in place — ids are kept
-// identical so customers.car_inventory_id references stay valid. Foreign keys
-// must be OFF for this: with them ON, DROP TABLE car_inventory_old fires the
-// ON DELETE SET NULL action for every row that referenced it (nulling all
-// those links) even though a same-named replacement table already exists —
-// this is standard SQLite table-surgery procedure, not a quirk to avoid.
-const carInventoryCols = db.prepare("PRAGMA table_info(car_inventory)").all().map(c => c.name);
-if (!carInventoryCols.includes('trim')) {
-  db.exec('PRAGMA foreign_keys = OFF');
-  db.exec('ALTER TABLE car_inventory RENAME TO car_inventory_old');
-  db.exec(`CREATE TABLE car_inventory (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    brand TEXT NOT NULL,
-    model TEXT NOT NULL,
-    year TEXT NOT NULL,
-    trim TEXT NOT NULL DEFAULT '',
-    color TEXT NOT NULL,
-    purchase_price REAL,
-    is_demo INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL,
-    UNIQUE(brand, model, year, trim, color)
-  )`);
-  db.exec(`INSERT INTO car_inventory (id, brand, model, year, trim, color, purchase_price, is_demo, created_at)
-    SELECT id, brand, model, year, '', color, purchase_price, is_demo, created_at FROM car_inventory_old`);
-  db.exec('DROP TABLE car_inventory_old');
-  db.exec('PRAGMA foreign_keys = ON');
-}
+  // Migration for car_inventory created before "trim" (الفئة) existed. A plain
+  // ALTER TABLE ADD COLUMN can't also widen the old UNIQUE(brand,model,year,color)
+  // constraint to include trim, so the table is rebuilt in place — ids are kept
+  // identical so customers.car_inventory_id references stay valid. Foreign keys
+  // must be OFF for this: with them ON, DROP TABLE car_inventory_old fires the
+  // ON DELETE SET NULL action for every row that referenced it (nulling all
+  // those links) even though a same-named replacement table already exists —
+  // this is standard SQLite table-surgery procedure, not a quirk to avoid.
+  const carInventoryCols = db.prepare("PRAGMA table_info(car_inventory)").all().map(c => c.name);
+  if (!carInventoryCols.includes('trim')) {
+    db.exec('PRAGMA foreign_keys = OFF');
+    db.exec('ALTER TABLE car_inventory RENAME TO car_inventory_old');
+    db.exec(`CREATE TABLE car_inventory (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      brand TEXT NOT NULL,
+      model TEXT NOT NULL,
+      year TEXT NOT NULL,
+      trim TEXT NOT NULL DEFAULT '',
+      color TEXT NOT NULL,
+      purchase_price REAL,
+      is_demo INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      UNIQUE(brand, model, year, trim, color)
+    )`);
+    db.exec(`INSERT INTO car_inventory (id, brand, model, year, trim, color, purchase_price, is_demo, created_at)
+      SELECT id, brand, model, year, '', color, purchase_price, is_demo, created_at FROM car_inventory_old`);
+    db.exec('DROP TABLE car_inventory_old');
+    db.exec('PRAGMA foreign_keys = ON');
+  }
 
-const sopExists = db.prepare('SELECT 1 FROM sop WHERE id = 1').get();
-if (!sopExists) {
-  db.prepare('INSERT INTO sop (id, content, updated_at) VALUES (1, ?, ?)').run(
-    `إجراءات التعامل مع العميل - معرض الهدف الأميز
+  const sopExists = db.prepare('SELECT 1 FROM sop WHERE id = 1').get();
+  if (!sopExists) {
+    const name = tenantName || 'معرضك';
+    db.prepare('INSERT INTO sop (id, content, updated_at) VALUES (1, ?, ?)').run(
+      `إجراءات التعامل مع العميل - ${name}
 
 1. استقبال العميل خلال دقيقتين من وصوله.
 2. عرض السيارات المطلوبة وشرح المواصفات والفروقات بين الفئات.
@@ -200,9 +195,9 @@ if (!sopExists) {
 9. العميل غير الراضي: تصعيد فوري للمشرف المباشر ومتابعة الحل خلال 48 ساعة.
 
 (هذا النص قابل للتعديل من صفحة "الإجراءات" داخل النظام)`,
-    new Date().toISOString()
-  );
+      new Date().toISOString()
+    );
+  }
 }
 
-module.exports = db;
-module.exports.dataDir = dataDir;
+module.exports = { initSchema };
