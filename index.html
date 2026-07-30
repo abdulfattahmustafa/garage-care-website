@@ -1,163 +1,797 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Garage Care - Premium Auto Service</title>
-    <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>كراج كير | GARAGE CARE — خبراء السيارات الألمانية في جدة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root{
+  --primary:#1e4fc2;
+  --primary-light:#2d63e8;
+  --dark:#0d1b3e;
+  --gold:#f5a623;
+  --gold-light:#f7c355;
+  --light:#f8f8f6;
+  --black:#080d18;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'Cairo',sans-serif;background:var(--light);color:var(--dark);direction:rtl;overflow-x:hidden;line-height:1.7;}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:var(--black);}
+::-webkit-scrollbar-thumb{background:var(--primary);border-radius:3px;}
+
+/* ═══ NAVBAR ═══ */
+.navbar{
+  position:fixed;top:0;width:100%;z-index:1000;
+  height:68px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 2.5rem;
+  background:linear-gradient(90deg,var(--black) 0%,var(--dark) 55%,#1b3d8f 82%,#243f8a 100%);
+  border-bottom:1px solid rgba(245,166,35,.18);
+  transition:all .35s;
+}
+.navbar.scrolled{
+  background:linear-gradient(90deg,rgba(8,13,24,.97) 0%,rgba(13,27,62,.97) 60%,rgba(30,79,194,.45) 100%);
+  box-shadow:0 4px 30px rgba(0,0,0,.45);
+}
+.nav-logo{display:flex;align-items:center;gap:.75rem;text-decoration:none;}
+.logo-box{
+  width:44px;height:44px;border-radius:11px;
+  background:linear-gradient(135deg,var(--primary),var(--gold));
+  display:flex;align-items:center;justify-content:center;
+  font-size:.92rem;font-weight:900;color:#fff;
+  box-shadow:0 3px 14px rgba(30,79,194,.4);
+  letter-spacing:-.5px;
+}
+.logo-txt{display:flex;flex-direction:column;line-height:1.15;}
+.logo-en{font-size:.82rem;font-weight:800;color:var(--gold);letter-spacing:2px;}
+.logo-ar{font-size:.72rem;color:rgba(255,255,255,.58);font-weight:500;}
+.nav-links{display:flex;align-items:center;gap:1.4rem;list-style:none;}
+.nav-links a{color:rgba(255,255,255,.82);text-decoration:none;font-size:.87rem;font-weight:500;position:relative;transition:color .3s;}
+.nav-links a::after{content:'';position:absolute;bottom:-3px;right:0;width:0;height:2px;background:var(--gold);border-radius:1px;transition:width .3s;}
+.nav-links a:hover{color:var(--gold);}
+.nav-links a:hover::after{width:100%;}
+.nav-cta{background:linear-gradient(135deg,var(--primary),var(--gold)) !important;color:#fff !important;padding:.47rem 1.2rem;border-radius:25px;font-weight:700 !important;}
+.nav-cta::after{display:none !important;}
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:4px;}
+.hamburger span{display:block;width:24px;height:2px;background:#fff;border-radius:2px;transition:all .3s;}
+.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+.hamburger.open span:nth-child(2){opacity:0;}
+.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+
+/* ═══ HERO ═══ */
+.hero{
+  min-height:100vh;background:var(--black);
+  position:relative;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  overflow:hidden;padding:115px 2rem 75px;
+}
+.hero-grid{
+  position:absolute;inset:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(30,79,194,.07) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(30,79,194,.07) 1px,transparent 1px);
+  background-size:62px 62px;
+}
+.glow{position:absolute;border-radius:50%;pointer-events:none;}
+.glow-1{width:560px;height:560px;background:radial-gradient(circle,rgba(30,79,194,.22) 0%,transparent 70%);top:-130px;right:-100px;}
+.glow-2{width:430px;height:430px;background:radial-gradient(circle,rgba(245,166,35,.12) 0%,transparent 70%);bottom:20px;left:-90px;}
+.glow-3{width:270px;height:270px;background:radial-gradient(circle,rgba(30,79,194,.14) 0%,transparent 70%);bottom:22%;right:14%;}
+.ring{position:absolute;border-radius:50%;pointer-events:none;}
+.ring-1{width:330px;height:330px;border:1px solid rgba(30,79,194,.13);top:7%;left:3%;animation:spin 36s linear infinite;}
+.ring-2{width:215px;height:215px;border:1px solid rgba(245,166,35,.1);bottom:17%;right:5%;animation:spin 23s linear infinite reverse;}
+.ring-3{width:140px;height:140px;border:1px solid rgba(30,79,194,.11);top:27%;right:11%;animation:spin 17s linear infinite;}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+.hero-content{position:relative;z-index:2;text-align:center;max-width:840px;}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:.5rem;
+  background:rgba(30,79,194,.14);border:1px solid rgba(30,79,194,.34);
+  color:var(--gold);padding:.44rem 1.2rem;border-radius:25px;
+  font-size:.8rem;font-weight:700;margin-bottom:1.7rem;backdrop-filter:blur(8px);
+}
+.hero h1{font-size:clamp(2rem,5vw,3.7rem);font-weight:900;color:#fff;line-height:1.25;margin-bottom:1.25rem;}
+.hero h1 span{
+  background:linear-gradient(130deg,var(--primary-light),var(--gold));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.hero p{font-size:1.05rem;color:rgba(255,255,255,.7);max-width:570px;margin:0 auto 2.3rem;font-weight:400;}
+.hero-btns{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;}
+.btn-primary{
+  background:linear-gradient(135deg,var(--primary),var(--primary-light));
+  color:#fff;padding:.85rem 2rem;border-radius:30px;text-decoration:none;
+  font-weight:700;font-size:.95rem;display:inline-flex;align-items:center;gap:.5rem;
+  box-shadow:0 4px 22px rgba(30,79,194,.4);transition:all .3s;
+}
+.btn-primary:hover{transform:translateY(-3px);box-shadow:0 8px 32px rgba(30,79,194,.5);}
+.btn-outline{
+  background:transparent;color:#fff;padding:.85rem 2rem;border-radius:30px;
+  text-decoration:none;font-weight:600;font-size:.95rem;
+  display:inline-flex;align-items:center;gap:.5rem;
+  border:1.5px solid rgba(255,255,255,.27);transition:all .3s;
+}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold);transform:translateY(-3px);}
+
+.hero-brands{position:relative;z-index:2;margin-top:4rem;text-align:center;width:100%;}
+.brands-lbl{color:rgba(255,255,255,.33);font-size:.72rem;font-weight:500;letter-spacing:3px;text-transform:uppercase;margin-bottom:1.3rem;}
+.brands-row{display:flex;justify-content:center;gap:.75rem;flex-wrap:wrap;}
+.brand-chip{
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.63);padding:.4rem 1rem;border-radius:8px;
+  font-size:.7rem;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+  transition:all .3s;cursor:default;
+}
+.brand-chip:hover{background:rgba(30,79,194,.22);border-color:rgba(30,79,194,.5);color:#fff;transform:translateY(-2px);}
+
+.scroll-arrow{
+  position:absolute;bottom:28px;left:50%;transform:translateX(-50%);
+  color:rgba(255,255,255,.28);display:flex;flex-direction:column;align-items:center;gap:5px;
+  animation:bob 2.3s ease-in-out infinite;font-size:.68rem;letter-spacing:2px;
+}
+@keyframes bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-8px)}}
+
+/* ═══ COMMON SECTION ═══ */
+section{padding:90px 2rem;}
+.container{max-width:1200px;margin:0 auto;}
+.section-header{text-align:center;margin-bottom:3.4rem;}
+.section-tag{display:inline-block;color:var(--primary);font-size:.76rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:.7rem;}
+.section-tag::before,.section-tag::after{content:'—';margin:0 .45rem;opacity:.4;}
+.section-title{font-size:clamp(1.65rem,3vw,2.45rem);font-weight:800;color:var(--dark);line-height:1.3;margin-bottom:.9rem;}
+.section-desc{color:#6b7280;max-width:540px;margin:0 auto;font-size:.93rem;}
+.title-line{width:54px;height:3px;background:linear-gradient(90deg,var(--primary),var(--gold));margin:1rem auto 0;border-radius:2px;}
+
+/* FADE-IN */
+.fi{opacity:0;transform:translateY(28px);transition:opacity .65s ease,transform .65s ease;}
+.fi.visible{opacity:1;transform:translateY(0);}
+.d1{transition-delay:.1s;}.d2{transition-delay:.2s;}.d3{transition-delay:.3s;}.d4{transition-delay:.4s;}
+
+/* ═══ ABOUT ═══ */
+.about{
+  background:linear-gradient(135deg,var(--dark) 0%,var(--black) 100%);
+  position:relative;overflow:hidden;
+}
+.about::before{
+  content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(30,79,194,.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(30,79,194,.06) 1px,transparent 1px);
+  background-size:55px 55px;
+}
+.about-inner{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;}
+.about-txt .section-tag{color:var(--gold);}
+.about-txt .section-title{color:#fff;}
+.about-txt p{color:rgba(255,255,255,.66);font-size:.93rem;margin-bottom:.9rem;}
+.feat-list{margin-top:1.4rem;display:flex;flex-direction:column;gap:.72rem;}
+.feat-item{display:flex;align-items:center;gap:.72rem;color:rgba(255,255,255,.82);font-size:.9rem;}
+.feat-item i{color:var(--gold);font-size:.95rem;flex-shrink:0;}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.3rem;}
+.stat-card{
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);
+  border-radius:18px;padding:1.8rem;text-align:center;backdrop-filter:blur(10px);transition:all .35s;
+}
+.stat-card:hover{background:rgba(30,79,194,.17);border-color:rgba(30,79,194,.32);transform:translateY(-5px);}
+.stat-num{
+  font-size:2.65rem;font-weight:900;line-height:1;margin-bottom:.5rem;
+  background:linear-gradient(135deg,var(--primary-light),var(--gold));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.stat-lbl{color:rgba(255,255,255,.63);font-size:.82rem;font-weight:500;}
+
+/* ═══ SERVICES ═══ */
+.services{background:var(--light);}
+.services-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.4rem;}
+.srv-card{
+  background:#fff;border-radius:22px;padding:2rem;
+  border:1px solid rgba(30,79,194,.08);position:relative;overflow:hidden;transition:all .4s;
+}
+.srv-card::before{
+  content:'';position:absolute;top:0;right:0;width:100%;height:3px;
+  background:linear-gradient(90deg,var(--primary),var(--gold));
+  transform:scaleX(0);transform-origin:left;transition:transform .4s;
+}
+.srv-card:hover::before{transform:scaleX(1);}
+.srv-card:hover{transform:translateY(-7px);box-shadow:0 22px 55px rgba(30,79,194,.11);border-color:rgba(30,79,194,.14);}
+.srv-ico{
+  width:64px;height:64px;border-radius:16px;
+  background:linear-gradient(135deg,rgba(30,79,194,.1),rgba(245,166,35,.1));
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.6rem;color:var(--primary);margin-bottom:1.25rem;transition:all .3s;
+}
+.srv-card:hover .srv-ico{background:linear-gradient(135deg,var(--primary),var(--gold));color:#fff;}
+.srv-card h3{font-size:1.05rem;font-weight:700;color:var(--dark);margin-bottom:.65rem;}
+.srv-card>p{color:#7c8491;font-size:.83rem;margin-bottom:1.2rem;line-height:1.6;}
+.srv-list{list-style:none;display:flex;flex-direction:column;gap:.5rem;}
+.srv-list li{display:flex;align-items:flex-start;gap:.55rem;color:#555;font-size:.81rem;}
+.srv-list li::before{content:'•';color:var(--gold);font-size:1rem;line-height:1.4;flex-shrink:0;}
+
+/* ═══ OFFER ═══ */
+.offer{background:linear-gradient(135deg,var(--dark) 0%,var(--black) 100%);position:relative;overflow:hidden;}
+.offer::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(30,79,194,.17) 0%,transparent 65%);}
+.offer-inner{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;}
+.offer-badge{
+  display:inline-flex;align-items:center;gap:.45rem;
+  background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.34);
+  color:var(--gold);padding:.37rem .95rem;border-radius:20px;font-size:.78rem;font-weight:700;margin-bottom:1rem;
+}
+.offer-txt .section-title{color:#fff;}
+.offer-txt .section-desc{color:rgba(255,255,255,.56);margin:0;}
+.check-list{margin:1.6rem 0;display:flex;flex-direction:column;gap:.82rem;}
+.chk{display:flex;align-items:center;gap:.72rem;color:rgba(255,255,255,.84);font-size:.9rem;}
+.chk i{color:var(--gold);font-size:.87rem;flex-shrink:0;}
+.offer-card{
+  background:rgba(255,255,255,.04);border:1px solid rgba(245,166,35,.2);
+  border-radius:26px;padding:2.7rem;text-align:center;
+  backdrop-filter:blur(12px);position:relative;
+  box-shadow:0 0 65px rgba(245,166,35,.07);
+}
+.offer-tag-lbl{
+  position:absolute;top:-14px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(135deg,var(--primary),var(--gold));
+  color:#fff;padding:.37rem 1.4rem;border-radius:20px;font-size:.74rem;font-weight:700;white-space:nowrap;
+}
+.price-was{color:rgba(255,255,255,.36);font-size:1.05rem;text-decoration:line-through;margin-bottom:.2rem;}
+.price-big{
+  font-size:4.4rem;font-weight:900;line-height:1;
+  background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.price-cur{font-size:1.2rem;font-weight:700;color:var(--gold);}
+.price-sub{color:rgba(255,255,255,.43);font-size:.78rem;margin:.3rem 0 1.5rem;}
+.disc-tag{
+  display:inline-block;background:rgba(245,166,35,.13);
+  border:1px solid rgba(245,166,35,.27);color:var(--gold);
+  padding:.32rem .95rem;border-radius:20px;font-size:.82rem;font-weight:700;margin-bottom:1.9rem;
+}
+.btn-gold{
+  background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  color:var(--black);padding:1rem 2.5rem;border-radius:30px;text-decoration:none;
+  font-weight:800;font-size:1rem;display:inline-flex;align-items:center;gap:.5rem;
+  box-shadow:0 4px 22px rgba(245,166,35,.3);transition:all .3s;border:none;cursor:pointer;
+}
+.btn-gold:hover{transform:translateY(-3px);box-shadow:0 8px 32px rgba(245,166,35,.42);}
+
+/* ═══ GERMAN CARS ═══ */
+.german{background:var(--light);text-align:center;}
+.brands-big{display:flex;justify-content:center;align-items:center;gap:1.3rem;flex-wrap:wrap;margin-top:2.5rem;}
+.brand-card{
+  background:#fff;border:1.5px solid rgba(30,79,194,.1);border-radius:18px;
+  padding:1.2rem 1.8rem;min-width:118px;text-align:center;transition:all .3s;cursor:default;
+}
+.brand-card:hover{border-color:var(--primary);box-shadow:0 10px 34px rgba(30,79,194,.1);transform:translateY(-5px);}
+.brand-card i{font-size:1.8rem;color:var(--primary);margin-bottom:.45rem;display:block;transition:color .3s;}
+.brand-card:hover i{color:var(--gold);}
+.brand-card span{font-size:.77rem;font-weight:800;color:var(--dark);letter-spacing:1px;text-transform:uppercase;display:block;}
+.german-desc{max-width:580px;margin:1.9rem auto 0;color:#6b7280;font-size:.93rem;line-height:1.9;}
+.german-note{
+  display:inline-flex;align-items:center;gap:.5rem;
+  background:rgba(30,79,194,.08);border:1px solid rgba(30,79,194,.14);
+  color:var(--primary);padding:.48rem 1.2rem;border-radius:20px;font-size:.82rem;font-weight:600;margin-top:2rem;
+}
+
+/* ═══ HOURS ═══ */
+.hours{background:linear-gradient(135deg,var(--black),var(--dark));position:relative;overflow:hidden;}
+.hours::before{
+  content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(30,79,194,.07) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(30,79,194,.07) 1px,transparent 1px);
+  background-size:62px 62px;
+}
+.hours-inner{position:relative;z-index:1;}
+.hours .section-tag{color:var(--gold);}
+.hours .section-title{color:#fff;}
+.hours-cards{display:flex;gap:1.5rem;justify-content:center;flex-wrap:wrap;margin-top:2.5rem;}
+.hrs-card{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:22px;padding:2.5rem 3.2rem;text-align:center;
+  backdrop-filter:blur(10px);transition:all .35s;min-width:245px;
+}
+.hrs-card:hover{background:rgba(30,79,194,.17);border-color:rgba(30,79,194,.32);transform:translateY(-5px);}
+.hrs-ico{font-size:2.4rem;margin-bottom:.9rem;}
+.hrs-day{color:var(--gold);font-size:.95rem;font-weight:700;margin-bottom:.4rem;}
+.hrs-time{color:#fff;font-size:1.6rem;font-weight:800;}
+
+/* ═══ CONTACT ═══ */
+.contact{background:var(--light);}
+.contact-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1.3rem;margin-top:2.5rem;}
+.cnt-card{
+  background:#fff;border-radius:20px;padding:1.8rem;text-align:center;
+  border:1px solid rgba(30,79,194,.08);transition:all .35s;
+  text-decoration:none;color:inherit;display:block;
+}
+.cnt-card:hover{transform:translateY(-6px);box-shadow:0 22px 52px rgba(30,79,194,.1);border-color:rgba(30,79,194,.18);}
+.cnt-ico{width:58px;height:58px;border-radius:15px;display:flex;align-items:center;justify-content:center;margin:0 auto .9rem;font-size:1.35rem;color:#fff;}
+.cnt-card h4{font-size:.81rem;font-weight:600;color:#9ca3af;margin-bottom:.4rem;}
+.cnt-card p{font-size:.93rem;font-weight:700;color:var(--dark);}
+.loc-section{margin-top:2.8rem;background:#fff;border-radius:22px;overflow:hidden;border:1px solid rgba(30,79,194,.08);}
+.loc-head{padding:1.3rem 1.8rem;border-bottom:1px solid rgba(30,79,194,.07);display:flex;align-items:center;gap:.7rem;}
+.loc-head i{color:var(--primary);font-size:1.15rem;}
+.loc-head h3{font-size:.95rem;font-weight:700;color:var(--dark);}
+.loc-body{padding:1.8rem 2rem;display:flex;flex-direction:column;gap:1.1rem;}
+.loc-item{display:flex;align-items:flex-start;gap:.9rem;}
+.loc-num{
+  width:34px;height:34px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--primary),var(--gold));
+  color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;font-weight:700;
+}
+.loc-item h5{font-size:.88rem;font-weight:700;color:var(--dark);margin-bottom:.2rem;}
+.loc-item p{font-size:.8rem;color:#7c8491;}
+
+/* ═══ FOOTER ═══ */
+.footer{background:var(--black);border-top:1px solid rgba(255,255,255,.05);padding:3.5rem 2rem 1.5rem;}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:3rem;margin-bottom:2.8rem;}
+.footer-about p{color:rgba(255,255,255,.46);font-size:.82rem;margin-top:.9rem;line-height:1.75;}
+.footer-social{display:flex;gap:.7rem;margin-top:1.4rem;}
+.soc-link{
+  width:38px;height:38px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  color:rgba(255,255,255,.52);text-decoration:none;font-size:.88rem;transition:all .3s;
+}
+.soc-link:hover{background:var(--primary);border-color:var(--primary);color:#fff;}
+.footer-col h4{color:#fff;font-size:.92rem;font-weight:700;margin-bottom:1.1rem;padding-bottom:.65rem;position:relative;}
+.footer-col h4::after{content:'';position:absolute;bottom:0;right:0;width:28px;height:2px;background:var(--gold);border-radius:1px;}
+.footer-links{list-style:none;display:flex;flex-direction:column;gap:.55rem;}
+.footer-links a{color:rgba(255,255,255,.46);text-decoration:none;font-size:.82rem;transition:color .3s;display:flex;align-items:center;gap:.5rem;}
+.footer-links a::before{content:'›';color:var(--gold);}
+.footer-links a:hover{color:rgba(255,255,255,.88);}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.05);padding-top:1.4rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.8rem;}
+.footer-bottom p{color:rgba(255,255,255,.36);font-size:.78rem;}
+
+/* ═══ WHATSAPP FLOAT ═══ */
+.wa-float{
+  position:fixed;bottom:28px;left:28px;width:60px;height:60px;
+  background:#25d366;color:#fff;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.65rem;text-decoration:none;z-index:998;
+  box-shadow:0 4px 22px rgba(37,211,102,.4);transition:all .3s;
+  animation:wa-pulse 2.5s ease-in-out infinite;
+}
+.wa-float:hover{transform:scale(1.12);box-shadow:0 8px 32px rgba(37,211,102,.52);}
+@keyframes wa-pulse{
+  0%,100%{box-shadow:0 4px 22px rgba(37,211,102,.4);}
+  50%{box-shadow:0 4px 30px rgba(37,211,102,.65),0 0 0 10px rgba(37,211,102,.1);}
+}
+
+/* ═══ RESPONSIVE ═══ */
+@media(max-width:900px){
+  .about-inner,.offer-inner{grid-template-columns:1fr;gap:2.5rem;}
+  .footer-grid{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:768px){
+  .nav-links{
+    position:fixed;top:68px;right:0;width:100%;
+    background:rgba(8,13,24,.97);backdrop-filter:blur(20px);
+    flex-direction:column;padding:1.6rem 2rem;gap:1rem;
+    transform:translateY(-110%);transition:transform .35s;
+    border-bottom:1px solid rgba(255,255,255,.05);
+  }
+  .nav-links.open{transform:translateY(0);}
+  .hamburger{display:flex;}
+  .footer-grid{grid-template-columns:1fr;}
+  section{padding:64px 1.4rem;}
+}
+@media(max-width:480px){
+  .hero h1{font-size:1.75rem;}
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .hero-btns{flex-direction:column;align-items:center;}
+  .navbar{padding:0 1.2rem;}
+}
+</style>
 </head>
 <body>
-    <header class="navbar">
-        <div class="nav-container">
-            <a href="#" class="logo">
-                <span class="logo-mark">G</span>
-                <span class="logo-text">Garage<span class="accent">Care</span></span>
-            </a>
-            <nav class="nav-links">
-                <a href="#home">Home</a>
-                <a href="#services">Services</a>
-                <a href="#about">About</a>
-                <a href="#contact">Contact</a>
-            </nav>
-            <a href="#contact" class="btn btn-primary nav-cta">Book Now</a>
+
+<!-- ════════ NAVBAR ════════ -->
+<nav class="navbar" id="navbar">
+  <a href="#" class="nav-logo">
+    <div class="logo-box">GC</div>
+    <div class="logo-txt">
+      <span class="logo-en">GARAGE CARE</span>
+      <span class="logo-ar">كراج كير</span>
+    </div>
+  </a>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="#about">من نحن</a></li>
+    <li><a href="#services">خدماتنا</a></li>
+    <li><a href="#offer">العروض</a></li>
+    <li><a href="#hours">أوقات العمل</a></li>
+    <li><a href="#contact">تواصل معنا</a></li>
+    <li><a href="#contact" class="nav-cta"><i class="fab fa-whatsapp"></i> احجز موعد</a></li>
+  </ul>
+  <div class="hamburger" id="hamburger">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+
+<!-- ════════ HERO ════════ -->
+<section class="hero" id="home">
+  <div class="hero-grid"></div>
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+  <div class="glow glow-3"></div>
+  <div class="ring ring-1"></div>
+  <div class="ring ring-2"></div>
+  <div class="ring ring-3"></div>
+
+  <div class="hero-content">
+    <div class="hero-badge">
+      <i class="fas fa-shield-alt"></i>
+      فنيون معتمدون — جدة، المملكة العربية السعودية
+    </div>
+    <h1>خبراء السيارات الألمانية<br><span>في جدة</span></h1>
+    <p>فحص وصيانة احترافية بأيدي فنيين معتمدين وأجهزة تشخيص حديثة — نضمن لك أعلى مستوى من الجودة والدقة لسيارتك</p>
+    <div class="hero-btns">
+      <a href="https://wa.me/966500000000" class="btn-primary" target="_blank">
+        <i class="fab fa-whatsapp"></i> احجز موعد
+      </a>
+      <a href="#about" class="btn-outline">
+        تعرف علينا <i class="fas fa-arrow-left"></i>
+      </a>
+    </div>
+  </div>
+
+  <div class="hero-brands">
+    <p class="brands-lbl">تخصصنا الرئيسي</p>
+    <div class="brands-row">
+      <span class="brand-chip">BMW</span>
+      <span class="brand-chip">Mercedes-Benz</span>
+      <span class="brand-chip">Bentley</span>
+      <span class="brand-chip">Audi</span>
+      <span class="brand-chip">Porsche</span>
+      <span class="brand-chip">Volkswagen</span>
+    </div>
+  </div>
+
+  <div class="scroll-arrow">
+    <i class="fas fa-chevron-down"></i>
+    <span style="font-size:.63rem;letter-spacing:2px;">تمرير</span>
+  </div>
+</section>
+
+<!-- ════════ ABOUT ════════ -->
+<section class="about" id="about">
+  <div class="container">
+    <div class="about-inner">
+      <div class="about-txt fi">
+        <span class="section-tag">من نحن</span>
+        <h2 class="section-title">كراج كير — الثقة في كل تفصيلة</h2>
+        <p>كراج كير هو كراج متخصص في صيانة وفحص السيارات الألمانية بأعلى مستويات الجودة والدقة، مع قبول جميع أنواع السيارات الأخرى.</p>
+        <p>نمتلك فريقاً من الفنيين المعتمدين ذوي الخبرة العالية، مدعومين بأحدث أجهزة التشخيص التي تضمن تشخيصاً دقيقاً وإصلاحاً احترافياً.</p>
+        <div class="feat-list">
+          <div class="feat-item"><i class="fas fa-check-circle"></i><span>فنيون معتمدون ذوو خبرة عالية</span></div>
+          <div class="feat-item"><i class="fas fa-check-circle"></i><span>أجهزة تشخيص حديثة ومتطورة</span></div>
+          <div class="feat-item"><i class="fas fa-check-circle"></i><span>متخصصون في السيارات الألمانية</span></div>
+          <div class="feat-item"><i class="fas fa-check-circle"></i><span>فرعان في مدينة جدة</span></div>
         </div>
-    </header>
-
-    <section id="home" class="hero">
-        <div class="hero-overlay"></div>
-        <div class="hero-content">
-            <span class="hero-tag">Trusted Since 2005</span>
-            <h1 class="hero-title">
-                Precision Care for <span class="accent">Every Drive</span>
-            </h1>
-            <p class="hero-subtitle">
-                Expert mechanics, modern equipment, and a passion for performance.
-                We keep your car running like it just rolled off the showroom floor.
-            </p>
-            <div class="hero-actions">
-                <a href="#contact" class="btn btn-primary">Schedule Service</a>
-                <a href="#services" class="btn btn-outline">Explore Services</a>
-            </div>
-            <div class="hero-stats">
-                <div class="stat">
-                    <span class="stat-number">20+</span>
-                    <span class="stat-label">Years Experience</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-number">15k</span>
-                    <span class="stat-label">Cars Serviced</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-number">4.9</span>
-                    <span class="stat-label">Customer Rating</span>
-                </div>
-            </div>
+      </div>
+      <div class="stats-grid fi d2">
+        <div class="stat-card">
+          <div class="stat-num" data-target="3">0</div>
+          <div class="stat-lbl">+ سنوات خبرة</div>
         </div>
-    </section>
-
-    <section id="services" class="services">
-        <div class="section-container">
-            <div class="section-header">
-                <span class="section-tag">What We Do</span>
-                <h2 class="section-title">Our <span class="accent">Services</span></h2>
-                <p class="section-subtitle">
-                    From routine maintenance to performance upgrades, our certified team
-                    handles every job with precision and care.
-                </p>
-            </div>
-
-            <div class="services-grid">
-                <article class="service-card">
-                    <div class="service-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-                        </svg>
-                    </div>
-                    <h3 class="service-title">Engine Repair</h3>
-                    <p class="service-description">
-                        Comprehensive diagnostics and repair for all engine types.
-                        From minor tune-ups to full rebuilds.
-                    </p>
-                    <a href="#contact" class="service-link">Learn more &rarr;</a>
-                </article>
-
-                <article class="service-card">
-                    <div class="service-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                            <circle cx="12" cy="12" r="3"/>
-                            <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
-                        </svg>
-                    </div>
-                    <h3 class="service-title">Brake Service</h3>
-                    <p class="service-description">
-                        Stop with confidence. Pad replacement, rotor resurfacing,
-                        and complete brake system overhauls.
-                    </p>
-                    <a href="#contact" class="service-link">Learn more &rarr;</a>
-                </article>
-
-                <article class="service-card">
-                    <div class="service-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 12h3l3-9 6 18 3-9h3"/>
-                        </svg>
-                    </div>
-                    <h3 class="service-title">Diagnostics</h3>
-                    <p class="service-description">
-                        Computerized diagnostics that pinpoint issues fast,
-                        saving you time and money on repairs.
-                    </p>
-                    <a href="#contact" class="service-link">Learn more &rarr;</a>
-                </article>
-
-                <article class="service-card">
-                    <div class="service-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="9"/>
-                            <path d="M12 3v18M3 12h18"/>
-                        </svg>
-                    </div>
-                    <h3 class="service-title">Tire & Wheel</h3>
-                    <p class="service-description">
-                        Rotation, balancing, alignment, and premium tire fitting
-                        for a smoother, safer ride.
-                    </p>
-                    <a href="#contact" class="service-link">Learn more &rarr;</a>
-                </article>
-
-                <article class="service-card">
-                    <div class="service-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="11" width="18" height="10" rx="2"/>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                        </svg>
-                    </div>
-                    <h3 class="service-title">Oil & Filter</h3>
-                    <p class="service-description">
-                        Synthetic, semi-synthetic, and conventional oil changes
-                        with multi-point inspection included.
-                    </p>
-                    <a href="#contact" class="service-link">Learn more &rarr;</a>
-                </article>
-
-                <article class="service-card">
-                    <div class="service-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20 7h-9M14 17H5"/>
-                            <circle cx="17" cy="17" r="3"/>
-                            <circle cx="7" cy="7" r="3"/>
-                        </svg>
-                    </div>
-                    <h3 class="service-title">Performance Tuning</h3>
-                    <p class="service-description">
-                        Unlock your car's full potential with custom tunes,
-                        upgrades, and dyno-tested results.
-                    </p>
-                    <a href="#contact" class="service-link">Learn more &rarr;</a>
-                </article>
-            </div>
+        <div class="stat-card">
+          <div class="stat-num" data-target="2">0</div>
+          <div class="stat-lbl">فرع في جدة</div>
         </div>
-    </section>
+        <div class="stat-card">
+          <div class="stat-num" data-target="500">0</div>
+          <div class="stat-lbl">+ عميل راضٍ</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" data-target="6">0</div>
+          <div class="stat-lbl">ماركات ألمانية</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ SERVICES ════════ -->
+<section class="services" id="services">
+  <div class="container">
+    <div class="section-header fi">
+      <span class="section-tag">خدماتنا</span>
+      <h2 class="section-title">خدمات متكاملة لسيارتك</h2>
+      <p class="section-desc">نقدم مجموعة شاملة من خدمات الصيانة والإصلاح باستخدام أحدث المعدات وأعلى معايير الجودة</p>
+      <div class="title-line"></div>
+    </div>
+    <div class="services-grid">
+
+      <div class="srv-card fi d1">
+        <div class="srv-ico"><i class="fas fa-tools"></i></div>
+        <h3>إصلاح الأعطال الميكانيكية</h3>
+        <p>حلول متكاملة لجميع الأعطال الميكانيكية بدقة واحترافية عالية</p>
+        <ul class="srv-list">
+          <li>إصلاح المحرك وقطع الغيار</li>
+          <li>صيانة ناقل الحركة</li>
+          <li>فحص وإصلاح الفرامل والتعليق</li>
+          <li>إصلاح نظام التبريد</li>
+          <li>تشخيص الأعطال الدقيقة</li>
+        </ul>
+      </div>
+
+      <div class="srv-card fi d2">
+        <div class="srv-ico"><i class="fas fa-bolt"></i></div>
+        <h3>صيانة كهرباء السيارات</h3>
+        <p>تشخيص وإصلاح جميع أعطال الكهرباء بدقة وأجهزة متخصصة</p>
+        <ul class="srv-list">
+          <li>فحص وإصلاح نظام الإشعال</li>
+          <li>تشخيص وتبديل البطارية والشاحن</li>
+          <li>إصلاح وبرمجة لوحة التحكم</li>
+          <li>فحص الأسلاك والحساسات</li>
+          <li>حل جميع أعطال الكهرباء</li>
+        </ul>
+      </div>
+
+      <div class="srv-card fi d3">
+        <div class="srv-ico"><i class="fas fa-laptop-code"></i></div>
+        <h3>فحص وبرمجة</h3>
+        <p>برمجة ومعايرة وحدات التحكم بأعلى دقة باستخدام تقنيات حديثة</p>
+        <ul class="srv-list">
+          <li>فحص شامل بالكمبيوتر</li>
+          <li>برمجة وحدات التحكم ECU</li>
+          <li>مسح أكواد الأعطال</li>
+          <li>تحديث البرامج الداخلية</li>
+          <li>معايرة وضبط الحساسات</li>
+        </ul>
+      </div>
+
+      <div class="srv-card fi d4">
+        <div class="srv-ico"><i class="fas fa-search"></i></div>
+        <h3>فحص شامل</h3>
+        <p>فحص شامل لسيارتك من الألف إلى الياء لضمان سلامتك على الطريق</p>
+        <ul class="srv-list">
+          <li>فحص بطن المركبة</li>
+          <li>فحص المحرك بالكامل</li>
+          <li>فحص هيكل المركبة</li>
+          <li>فحص الكمبيوتر والأنظمة</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ════════ SPECIAL OFFER ════════ -->
+<section class="offer" id="offer">
+  <div class="container">
+    <div class="offer-inner">
+      <div class="offer-txt fi">
+        <div class="offer-badge"><i class="fas fa-fire"></i> عرض خاص محدود</div>
+        <h2 class="section-title">فحص شامل لسيارتك بسعر مميز</h2>
+        <p class="section-desc">احصل على فحص شامل ومتكامل يضمن سلامتك وراحتك على الطريق — أربعة محاور أساسية في زيارة واحدة</p>
+        <div class="check-list">
+          <div class="chk"><i class="fas fa-check-circle"></i><span>فحص بطن المركبة — الهيكل السفلي بالكامل</span></div>
+          <div class="chk"><i class="fas fa-check-circle"></i><span>فحص المحرك — الفحص الميكانيكي الشامل</span></div>
+          <div class="chk"><i class="fas fa-check-circle"></i><span>فحص هيكل المركبة — السلامة الهيكلية</span></div>
+          <div class="chk"><i class="fas fa-check-circle"></i><span>فحص الكمبيوتر — تشخيص جميع الأنظمة</span></div>
+        </div>
+      </div>
+      <div class="offer-card fi d2">
+        <div class="offer-tag-lbl">⭐ عرض خاص</div>
+        <div class="price-was">614 ريال</div>
+        <div>
+          <span class="price-big">460</span>
+          <span class="price-cur"> ريال</span>
+        </div>
+        <p class="price-sub">فحص شامل لجميع أنظمة السيارة</p>
+        <div class="disc-tag">خصم 25%</div>
+        <br>
+        <a href="https://wa.me/966500000000" class="btn-gold" target="_blank">
+          <i class="fab fa-whatsapp"></i> احجز الآن
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ GERMAN CARS ════════ -->
+<section class="german" id="brands">
+  <div class="container">
+    <div class="section-header fi">
+      <span class="section-tag">تخصصنا</span>
+      <h2 class="section-title">خبراء السيارات الألمانية</h2>
+      <div class="title-line"></div>
+    </div>
+    <div class="brands-big fi">
+      <div class="brand-card"><i class="fas fa-car"></i><span>BMW</span></div>
+      <div class="brand-card"><i class="fas fa-car"></i><span>Mercedes</span></div>
+      <div class="brand-card"><i class="fas fa-car"></i><span>Bentley</span></div>
+      <div class="brand-card"><i class="fas fa-car"></i><span>Audi</span></div>
+      <div class="brand-card"><i class="fas fa-car"></i><span>Porsche</span></div>
+      <div class="brand-card"><i class="fas fa-car"></i><span>Volkswagen</span></div>
+    </div>
+    <p class="german-desc fi">
+      نتخصص في السيارات الألمانية لما تتميز به من تكنولوجيا متقدمة وتعقيد هندسي يتطلب فنيين مدربين ومجهزين بأدوات التشخيص المتخصصة. نضمن لك الخبرة الكاملة والرعاية الدقيقة لسيارتك.
+    </p>
+    <div class="fi" style="text-align:center;">
+      <span class="german-note"><i class="fas fa-info-circle"></i>&nbsp; نقبل أيضاً جميع أنواع السيارات الأخرى</span>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ HOURS ════════ -->
+<section class="hours" id="hours">
+  <div class="container">
+    <div class="hours-inner">
+      <div class="section-header fi">
+        <span class="section-tag">أوقات العمل</span>
+        <h2 class="section-title">نحن هنا لخدمتك</h2>
+        <div class="title-line"></div>
+      </div>
+      <div class="hours-cards">
+        <div class="hrs-card fi d1">
+          <div class="hrs-ico">🗓️</div>
+          <div class="hrs-day">السبت — الخميس</div>
+          <div class="hrs-time">٨ص — ١٠م</div>
+        </div>
+        <div class="hrs-card fi d2">
+          <div class="hrs-ico">🌙</div>
+          <div class="hrs-day">الجمعة</div>
+          <div class="hrs-time">٤م — ١٠م</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ CONTACT ════════ -->
+<section class="contact" id="contact">
+  <div class="container">
+    <div class="section-header fi">
+      <span class="section-tag">تواصل معنا</span>
+      <h2 class="section-title">نحن هنا دائماً لمساعدتك</h2>
+      <div class="title-line"></div>
+    </div>
+    <div class="contact-cards">
+      <a href="tel:+966500000000" class="cnt-card fi d1">
+        <div class="cnt-ico" style="background:linear-gradient(135deg,var(--primary),var(--primary-light));"><i class="fas fa-phone"></i></div>
+        <h4>اتصل بنا</h4>
+        <p>‎+966 50 000 0000</p>
+      </a>
+      <a href="https://wa.me/966500000000" class="cnt-card fi d2" target="_blank">
+        <div class="cnt-ico" style="background:linear-gradient(135deg,#25d366,#128c7e);"><i class="fab fa-whatsapp"></i></div>
+        <h4>واتساب</h4>
+        <p>تواصل الآن</p>
+      </a>
+      <a href="https://instagram.com/graage.care" class="cnt-card fi d3" target="_blank">
+        <div class="cnt-ico" style="background:linear-gradient(135deg,#e1306c,#833ab4);"><i class="fab fa-instagram"></i></div>
+        <h4>انستقرام</h4>
+        <p>@graage.care</p>
+      </a>
+      <div class="cnt-card fi d4">
+        <div class="cnt-ico" style="background:linear-gradient(135deg,var(--gold),var(--gold-light));"><i class="fas fa-map-marker-alt"></i></div>
+        <h4>موقعنا</h4>
+        <p>جدة، السعودية</p>
+      </div>
+    </div>
+
+    <div class="loc-section fi">
+      <div class="loc-head">
+        <i class="fas fa-map-marked-alt"></i>
+        <h3>فروعنا في جدة</h3>
+      </div>
+      <div class="loc-body">
+        <div class="loc-item">
+          <div class="loc-num">١</div>
+          <div>
+            <h5>الفرع الأول</h5>
+            <p>حي السلامة، شارع صاري — قبل البنك الأهلي</p>
+          </div>
+        </div>
+        <div class="loc-item">
+          <div class="loc-num">٢</div>
+          <div>
+            <h5>الفرع الثاني</h5>
+            <p>قريباً — يضاف لاحقاً</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ FOOTER ════════ -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-about">
+        <a href="#" class="nav-logo" style="text-decoration:none;">
+          <div class="logo-box">GC</div>
+          <div class="logo-txt">
+            <span class="logo-en">GARAGE CARE</span>
+            <span class="logo-ar">كراج كير</span>
+          </div>
+        </a>
+        <p>متخصصون في صيانة وفحص السيارات الألمانية في جدة. فنيون معتمدون وأجهزة تشخيص حديثة لضمان أعلى جودة لسيارتك.</p>
+        <div class="footer-social">
+          <a href="https://instagram.com/graage.care" class="soc-link" target="_blank" title="انستقرام"><i class="fab fa-instagram"></i></a>
+          <a href="https://wa.me/966500000000" class="soc-link" target="_blank" title="واتساب"><i class="fab fa-whatsapp"></i></a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>روابط سريعة</h4>
+        <ul class="footer-links">
+          <li><a href="#about">من نحن</a></li>
+          <li><a href="#services">خدماتنا</a></li>
+          <li><a href="#offer">العروض</a></li>
+          <li><a href="#brands">تخصصنا</a></li>
+          <li><a href="#hours">أوقات العمل</a></li>
+          <li><a href="#contact">تواصل معنا</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>خدماتنا</h4>
+        <ul class="footer-links">
+          <li><a href="#services">إصلاح ميكانيكي</a></li>
+          <li><a href="#services">كهرباء السيارات</a></li>
+          <li><a href="#services">فحص وبرمجة</a></li>
+          <li><a href="#offer">فحص شامل — 460 ريال</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 كراج كير | GARAGE CARE — جميع الحقوق محفوظة</p>
+      <p>جدة، المملكة العربية السعودية &nbsp;·&nbsp; @graage.care</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ════════ WHATSAPP FLOAT ════════ -->
+<a href="https://wa.me/966500000000" class="wa-float" target="_blank" title="تواصل عبر واتساب">
+  <i class="fab fa-whatsapp"></i>
+</a>
+
+<script>
+// Navbar scroll
+window.addEventListener('scroll',()=>{
+  document.getElementById('navbar').classList.toggle('scrolled',window.scrollY>50);
+});
+
+// Hamburger
+const ham=document.getElementById('hamburger');
+const nav=document.getElementById('navLinks');
+ham.addEventListener('click',()=>{
+  ham.classList.toggle('open');
+  nav.classList.toggle('open');
+});
+nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
+  ham.classList.remove('open');
+  nav.classList.remove('open');
+}));
+
+// Fade-in observer
+const obs=new IntersectionObserver((entries)=>{
+  entries.forEach((e,i)=>{
+    if(e.isIntersecting){
+      setTimeout(()=>e.target.classList.add('visible'),i*80);
+      obs.unobserve(e.target);
+    }
+  });
+},{threshold:0.1});
+document.querySelectorAll('.fi').forEach(el=>obs.observe(el));
+
+// Counter
+function animateCount(el){
+  const target=+el.getAttribute('data-target');
+  const dur=1600,t0=performance.now();
+  const tick=now=>{
+    const p=Math.min((now-t0)/dur,1);
+    el.textContent=Math.floor((1-Math.pow(1-p,3))*target);
+    if(p<1)requestAnimationFrame(tick);
+    else el.textContent=target;
+  };
+  requestAnimationFrame(tick);
+}
+new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.querySelectorAll('[data-target]').forEach(animateCount);
+    }
+  });
+},{threshold:0.3}).observe(document.querySelector('.stats-grid'));
+</script>
 </body>
 </html>
