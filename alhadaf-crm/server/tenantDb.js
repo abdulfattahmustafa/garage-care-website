@@ -49,6 +49,10 @@ function listTenants() {
   return registryDb.prepare('SELECT * FROM tenants ORDER BY created_at').all();
 }
 
+function setTenantActive(slug, isActive) {
+  registryDb.prepare('UPDATE tenants SET is_active = ? WHERE slug = ?').run(isActive ? 1 : 0, slug);
+}
+
 // One DatabaseSync connection per tenant, opened lazily and kept open for
 // the life of the process — this is what makes every tenant's data live in
 // a completely separate file, so a bug in a query can never leak rows
@@ -99,4 +103,5 @@ module.exports = {
   createTenant,
   registerLegacyTenant,
   getUploadsDir,
+  setTenantActive,
 };

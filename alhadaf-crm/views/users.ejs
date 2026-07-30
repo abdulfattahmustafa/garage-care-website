@@ -24,21 +24,37 @@
           <label>كلمة المرور</label>
           <input type="password" name="password" placeholder="4 خانات على الأقل" required>
         </div>
+        <div class="field" style="flex:1 1 140px">
+          <label>الصلاحية</label>
+          <select name="role">
+            <option value="employee" selected>موظف</option>
+            <option value="manager">مدير المعرض</option>
+          </select>
+        </div>
         <div class="field" style="flex:0 0 auto">
           <button type="submit" class="btn btn-primary">+ إضافة مستخدم</button>
         </div>
       </form>
+      <p class="muted" style="font-size:13px; margin-top:8px">"مدير المعرض" يشوف كل شي (الإعدادات، المستخدمون، سجل النشاط، النسخ الاحتياطي). "موظف" يشتغل على العملاء والعملاء المحتملين بس، وما يوصل صفحات الإدارة هذي.</p>
 
       <div class="divider"></div>
 
       <div class="table-wrap">
         <table>
-          <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الحالة</th><th></th></tr></thead>
+          <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الصلاحية</th><th>الحالة</th><th></th></tr></thead>
           <tbody>
             <% users.forEach(u => { %>
               <tr>
                 <td><%= u.name %><% if (String(u.id) === String(currentUserId)) { %> <span class="badge badge-gray">أنت</span><% } %></td>
                 <td><%= u.username %></td>
+                <td>
+                  <form method="POST" action="/users/<%= u.id %>/role" style="display:inline">
+                    <select name="role" onchange="this.form.submit()">
+                      <option value="employee" <%= u.role !== 'manager' ? 'selected' : '' %>>موظف</option>
+                      <option value="manager" <%= u.role === 'manager' ? 'selected' : '' %>>مدير المعرض</option>
+                    </select>
+                  </form>
+                </td>
                 <td><span class="badge <%= u.is_active ? 'badge-green' : 'badge-red' %>"><%= u.is_active ? 'فعّال' : 'معطّل' %></span></td>
                 <td style="display:flex; gap:6px; flex-wrap:wrap">
                   <% if (String(u.id) !== String(currentUserId)) { %>

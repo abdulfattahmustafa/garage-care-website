@@ -59,6 +59,13 @@ function requireAuth(req, res, next) {
   return res.redirect('/login');
 }
 
+// Gates the admin-only pages (settings, users, activity log, backup/restore)
+// from regular employee accounts — managers see everything, employees don't.
+function requireManager(req, res, next) {
+  if (req.session && req.session.userRole === 'manager') return next();
+  return res.status(403).render('403');
+}
+
 app.locals.util = require('./lib/util');
 
 // --- Public routes (no tenant/session yet) ---
@@ -88,6 +95,7 @@ app.post('/login', (req, res) => {
   req.session.tenantName = tenantMeta.name;
   req.session.userId = user.id;
   req.session.userName = user.name;
+  req.session.userRole = user.role;
 
   req.db = db;
   logActivity(req, 'تسجيل دخول', {});
@@ -123,7 +131,9 @@ app.post('/signup', (req, res) => {
   }
 
   const ts = new Date().toISOString();
-  db.prepare('INSERT INTO users (name, username, password_hash, is_active, created_at) VALUES (?,?,?,1,?)')
+  // The account that creates a tenant is always its manager — every
+  // subsequent account added via /users defaults to 'employee'.
+  db.prepare('INSERT INTO users (name, username, password_hash, role, is_active, created_at) VALUES (?,?,?,\'manager\',1,?)')
     .run(adminName, username, bcrypt.hashSync(password, 10), ts);
 
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
@@ -131,6 +141,7 @@ app.post('/signup', (req, res) => {
   req.session.tenantName = showroomName;
   req.session.userId = user.id;
   req.session.userName = user.name;
+  req.session.userRole = user.role;
 
   req.db = db;
   logActivity(req, 'إنشاء المعرض', { details: showroomName });
@@ -141,6 +152,9 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/login'));
 });
 
+// --- System-admin routes (platform owner, fully separate from any tenant) ---
+app.use('/system-admin', require('./routes/systemAdmin'));
+
 // --- Protected routes ---
 app.use(requireAuth);
 
@@ -150,18 +164,19 @@ app.use((req, res, next) => {
   res.locals.currentUserName = req.session.userName;
   res.locals.currentUserId = req.session.userId;
   res.locals.tenantName = req.session.tenantName;
+  res.locals.userRole = req.session.userRole;
   next();
 });
 
 app.use('/', require('./routes/dashboard'));
 app.use('/customers', require('./routes/customers'));
 app.use('/sop', require('./routes/sop'));
-app.use('/data', require('./routes/data'));
-app.use('/settings', require('./routes/settings'));
+app.use('/data', requireManager, require('./routes/data'));
+app.use('/settings', requireManager, require('./routes/settings'));
 app.use('/cars', require('./routes/cars'));
-app.use('/users', require('./routes/users'));
+app.use('/users', requireManager, require('./routes/users'));
 app.use('/prospects', require('./routes/prospects'));
-app.use('/activity', require('./routes/activity'));
+app.use('/activity', requireManager, require('./routes/activity'));
 
 app.use((req, res) => {
   res.status(404).render('404');

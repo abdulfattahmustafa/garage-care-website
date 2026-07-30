@@ -8,11 +8,13 @@
       <a href="/prospects" class="<%= active === 'prospects' ? 'active' : '' %>">العملاء المحتملون</a>
       <a href="/sop" class="<%= active === 'sop' ? 'active' : '' %>">إجراءات التعامل</a>
       <a href="/cars" class="<%= active === 'cars' ? 'active' : '' %>">قائمة السيارات</a>
-      <a href="/users" class="<%= active === 'users' ? 'active' : '' %>">المستخدمون</a>
-      <a href="/activity" class="<%= active === 'activity' ? 'active' : '' %>">سجل النشاط</a>
-      <a href="/settings" class="<%= active === 'settings' ? 'active' : '' %>">الإعدادات</a>
-      <a href="/data/export.xlsx" class="<%= active === 'backup' ? 'active' : '' %>">نسخة احتياطية (Excel)</a>
-      <a href="/data/restore" class="<%= active === 'restore' ? 'active' : '' %>">استعادة</a>
+      <% if (typeof userRole !== 'undefined' && userRole === 'manager') { %>
+        <a href="/users" class="<%= active === 'users' ? 'active' : '' %>">المستخدمون</a>
+        <a href="/activity" class="<%= active === 'activity' ? 'active' : '' %>">سجل النشاط</a>
+        <a href="/settings" class="<%= active === 'settings' ? 'active' : '' %>">الإعدادات</a>
+        <a href="/data/export.xlsx" class="<%= active === 'backup' ? 'active' : '' %>">نسخة احتياطية (Excel)</a>
+        <a href="/data/restore" class="<%= active === 'restore' ? 'active' : '' %>">استعادة</a>
+      <% } %>
     </nav>
     <div style="display:flex; align-items:center; gap:10px">
       <% if (typeof currentUserName !== 'undefined' && currentUserName) { %>

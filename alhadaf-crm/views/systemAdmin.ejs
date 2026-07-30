@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <%- include('partials/head', { title: 'لوحة المعارض — مدير النظام' }) %>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-inner">
+      <a href="/system-admin" class="brand"><span class="bar"></span> مدير النظام <span class="gold">| كل المعارض</span></a>
+      <div style="display:flex; align-items:center; gap:10px">
+        <form method="POST" action="/system-admin/logout" style="margin:10px 0">
+          <button type="submit" class="nav-logout">خروج</button>
+        </form>
+      </div>
+    </div>
+  </header>
+  <main class="page container">
+    <div class="section-title"><span class="bar"></span> المعارض المشتركة (<%= tenants.length %>)</div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>اسم المعرض</th>
+              <th>رمز المعرض</th>
+              <th>عدد العملاء</th>
+              <th>عدد الحسابات</th>
+              <th>تاريخ الإنشاء</th>
+              <th>الحالة</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% tenants.forEach(t => { %>
+              <tr>
+                <td><%= t.name %></td>
+                <td><code><%= t.slug %></code></td>
+                <td><%= t.customerCount %></td>
+                <td><%= t.userCount %></td>
+                <td><%= t.created_at.slice(0, 10) %></td>
+                <td><span class="badge <%= t.is_active ? 'badge-green' : 'badge-red' %>"><%= t.is_active ? 'نشط' : 'موقوف' %></span></td>
+                <td>
+                  <form method="POST" action="/system-admin/tenants/<%= t.slug %>/toggle" onsubmit="return confirm('<%= t.is_active ? 'إيقاف' : 'تفعيل' %> معرض «<%= t.name %>»؟ <%= t.is_active ? 'هذا يمنع كل حساباته من تسجيل الدخول فورًا.' : '' %>');">
+                    <button type="submit" class="btn btn-outline btn-sm"><%= t.is_active ? 'إيقاف' : 'تفعيل' %></button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% if (!tenants.length) { %>
+        <p class="muted">ما فيه معارض مسجّلة بعد.</p>
+      <% } %>
+    </div>
+  </main>
+</body>
+</html>

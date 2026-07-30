@@ -41,6 +41,8 @@
 |-------------|------------------|
 | `SESSION_SECRET` | أي نص عشوائي طويل (مثلاً: `x7k29dQpL4mN8wZs1vBcT6yR3jH5f`) |
 | `DATA_DIR` | `/data` |
+| `SYSTEM_ADMIN_USERNAME` | اسم مستخدم من اختيارك (هذا لك انت بس، مو لأي معرض) |
+| `SYSTEM_ADMIN_PASSWORD` | كلمة مرور قوية من اختيارك — تفتحلك `/system-admin` لإدارة كل المعارض المشتركة |
 
 ---
 

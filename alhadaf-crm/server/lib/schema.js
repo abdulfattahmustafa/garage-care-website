@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   username TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'employee',
   is_active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL
 );
@@ -176,6 +177,14 @@ CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
       SELECT id, brand, model, year, '', color, purchase_price, is_demo, created_at FROM car_inventory_old`);
     db.exec('DROP TABLE car_inventory_old');
     db.exec('PRAGMA foreign_keys = ON');
+  }
+
+  // Migration for tenants created before roles existed: default to 'manager'
+  // (not 'employee') so accounts that already had full access don't suddenly
+  // lose it — the new admin-only pages only start being enforced going forward.
+  const userCols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
+  if (!userCols.includes('role')) {
+    db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'manager'");
   }
 
   const sopExists = db.prepare('SELECT 1 FROM sop WHERE id = 1').get();
