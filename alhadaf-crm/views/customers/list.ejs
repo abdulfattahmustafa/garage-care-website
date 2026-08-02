@@ -8,7 +8,9 @@
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px">
       <div class="section-title" style="margin:0"><span class="bar"></span> <%= isDealerSection ? 'المعارض' : 'العملاء' %> (<%= total %>)</div>
       <div style="display:flex; gap:10px">
+        <% if (userRole === 'manager') { %>
         <a href="/data/export.csv?q=<%= encodeURIComponent(q) %>&payment_method=<%= encodeURIComponent(payment_method) %>&salesperson=<%= encodeURIComponent(salesperson) %>&month=<%= encodeURIComponent(month) %>&status=<%= encodeURIComponent(status) %>&customer_type=<%= encodeURIComponent(isDealerSection ? 'معارض' : 'رخصة واستمارة') %>" class="btn btn-outline">⬇️ تصدير النتائج Excel/CSV</a>
+        <% } %>
         <a href="/customers/new<%= isDealerSection ? '?type=dealer' : '' %>" class="btn btn-primary">+ <%= isDealerSection ? 'إضافة معرض' : 'إضافة عملية بيع' %></a>
       </div>
     </div>

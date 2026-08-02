@@ -17,10 +17,12 @@
         <% if (customer.phone) { %>
           <a class="btn btn-wa btn-sm" target="_blank" href="https://wa.me/966<%= customer.phone.replace(/^0/,'') %>?text=<%= waText %>">📲 واتساب</a>
         <% } %>
+        <% if (userRole === 'manager') { %>
         <a class="btn btn-outline btn-sm" href="/customers/<%= customer.id %>/edit">✏️ تعديل</a>
         <form method="POST" action="/customers/<%= customer.id %>/delete" onsubmit="return confirm('هل أنت متأكد من حذف بيانات هذا العميل نهائيًا؟');" style="display:inline">
           <button type="submit" class="btn btn-danger btn-sm">🗑️ حذف</button>
         </form>
+        <% } %>
       </div>
     </div>
 
@@ -69,9 +71,11 @@
             <span class="badge badge-amber">لم يُبلَّغ بعد</span>
           <% } %>
         </p>
+        <% if (userRole === 'manager') { %>
         <form method="POST" action="/customers/<%= customer.id %>/report">
           <button type="submit" class="btn btn-outline btn-sm"><%= customer.reported ? 'التراجع عن التبليغ' : 'وضع علامة "تم التبليغ"' %></button>
         </form>
+        <% } %>
 
         <% if (customer.customer_type !== 'معارض') { %>
         <div class="divider"></div>
@@ -84,7 +88,7 @@
           <% } %>
         </p>
         <% if (customer.followup_note) { %><p class="muted" style="font-size:13px"><%= customer.followup_note %></p><% } %>
-        <% if (!customer.followup_done) { %>
+        <% if (!customer.followup_done && userRole === 'manager') { %>
         <form method="POST" action="/customers/<%= customer.id %>/followup">
           <div class="form-row">
             <div class="field">
@@ -106,6 +110,7 @@
     <div class="card" style="margin-top:20px">
       <div class="section-title" style="font-size:16px"><span class="bar"></span> المرفقات</div>
 
+      <% if (userRole === 'manager') { %>
       <form method="POST" action="/customers/<%= customer.id %>/attachments" enctype="multipart/form-data" class="form-row" style="align-items:flex-end">
         <div class="field" style="flex:1 1 160px">
           <label>نوع المستند</label>
@@ -126,6 +131,7 @@
       </form>
 
       <div class="divider"></div>
+      <% } %>
 
       <% if (!attachments.length) { %>
         <p class="muted">لا يوجد مرفقات بعد.</p>
@@ -139,9 +145,11 @@
           </div>
           <div style="display:flex; gap:6px">
             <a class="btn btn-outline btn-sm" href="/customers/<%= customer.id %>/attachments/<%= a.id %>/download">⬇️ تنزيل</a>
+            <% if (userRole === 'manager') { %>
             <form method="POST" action="/customers/<%= customer.id %>/attachments/<%= a.id %>/delete" onsubmit="return confirm('حذف هذا المرفق؟');">
               <button type="submit" class="btn btn-danger btn-sm">حذف</button>
             </form>
+            <% } %>
           </div>
         </div>
       <% }) %>

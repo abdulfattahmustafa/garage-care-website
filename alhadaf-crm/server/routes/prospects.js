@@ -8,13 +8,19 @@ const TERMINAL_STAGES = ['لم يتم البيع', 'تحوّل لعميل'];
 const SOURCES = ['زيارة مباشرة', 'اتصال هاتفي', 'إنستقرام', 'سناب شات', 'تيك توك', 'واتساب', 'توصية من عميل', 'موقع إلكتروني', 'أخرى'];
 const PAGE_SIZE = 20;
 
-// Employees may only add a prospect — every other prospects/* route (list,
-// detail, edit, delete, contact log) is manager-only.
+// Employees can view the prospects list and detail pages and add new
+// prospects, but can't edit, delete, or log contact attempts.
+const EMPLOYEE_BLOCKED_ROUTES = [
+  { method: 'GET', pattern: /^\/\d+\/edit$/ },
+  { method: 'POST', pattern: /^\/\d+$/ },
+  { method: 'POST', pattern: /^\/\d+\/delete$/ },
+  { method: 'POST', pattern: /^\/\d+\/contact$/ },
+];
 router.use((req, res, next) => {
   if (req.session.userRole === 'manager') return next();
-  const isAddRoute = (req.method === 'GET' && req.path === '/new') || (req.method === 'POST' && req.path === '/');
-  if (isAddRoute) return next();
-  return res.status(403).render('403');
+  const isBlocked = EMPLOYEE_BLOCKED_ROUTES.some(r => r.method === req.method && r.pattern.test(req.path));
+  if (isBlocked) return res.status(403).render('403');
+  next();
 });
 
 function nowISO() { return new Date().toISOString(); }
@@ -123,9 +129,6 @@ router.post('/', (req, res) => {
 
   logActivity(req, 'إضافة عميل محتمل', { entityType: 'prospect', entityId: info.lastInsertRowid, details: body.name.trim() + (autoAssigned ? ` (توزيع تلقائي على ${salesperson})` : '') });
 
-  if (req.session.userRole !== 'manager') {
-    return res.redirect('/prospects/new?added=1');
-  }
   res.redirect('/prospects/' + info.lastInsertRowid);
 });
 

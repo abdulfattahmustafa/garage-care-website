@@ -14,10 +14,12 @@
         <% if (prospect.stage !== 'تحوّل لعميل') { %>
           <a class="btn btn-primary btn-sm" href="/customers/new?from_prospect=<%= prospect.id %>">✅ تحويل لعميل (تسجيل بيع)</a>
         <% } %>
+        <% if (userRole === 'manager') { %>
         <a class="btn btn-outline btn-sm" href="/prospects/<%= prospect.id %>/edit">✏️ تعديل</a>
         <form method="POST" action="/prospects/<%= prospect.id %>/delete" onsubmit="return confirm('حذف بيانات هذا العميل المحتمل نهائيًا؟');" style="display:inline">
           <button type="submit" class="btn btn-danger btn-sm">🗑️ حذف</button>
         </form>
+        <% } %>
       </div>
     </div>
 
@@ -44,6 +46,7 @@
     <div class="card" style="margin-top:20px">
       <div class="section-title" style="font-size:16px"><span class="bar"></span> سجل التواصل</div>
 
+      <% if (userRole === 'manager') { %>
       <form method="POST" action="/prospects/<%= prospect.id %>/contact" class="form-row" style="align-items:flex-end">
         <div class="field" style="flex:0 0 160px">
           <label>التاريخ</label>
@@ -67,6 +70,7 @@
       </form>
 
       <div class="divider"></div>
+      <% } %>
 
       <% if (!logs.length) { %>
         <p class="muted">لا يوجد سجل تواصل بعد.</p>

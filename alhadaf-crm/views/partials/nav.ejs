@@ -1,14 +1,14 @@
 <% const isManager = typeof userRole !== 'undefined' && userRole === 'manager'; %>
 <header class="topnav">
   <div class="topnav-inner">
-    <a href="<%= isManager ? '/' : '/customers/new' %>" class="brand"><span class="bar"></span> <%= typeof tenantName !== 'undefined' && tenantName ? tenantName : 'معرضي' %> <span class="gold">| CRM</span></a>
+    <a href="/" class="brand"><span class="bar"></span> <%= typeof tenantName !== 'undefined' && tenantName ? tenantName : 'معرضي' %> <span class="gold">| CRM</span></a>
     <nav class="nav-links">
+      <a href="/" class="<%= active === 'dashboard' ? 'active' : '' %>">الرئيسية</a>
+      <a href="/customers" class="<%= active === 'customers' ? 'active' : '' %>">العملاء</a>
+      <a href="/customers/dealers" class="<%= active === 'dealers' ? 'active' : '' %>">معارض</a>
+      <a href="/customers/new" class="<%= active === 'new' ? 'active' : '' %>">إضافة عملية بيع</a>
+      <a href="/prospects" class="<%= active === 'prospects' ? 'active' : '' %>">العملاء المحتملون</a>
       <% if (isManager) { %>
-        <a href="/" class="<%= active === 'dashboard' ? 'active' : '' %>">الرئيسية</a>
-        <a href="/customers" class="<%= active === 'customers' ? 'active' : '' %>">العملاء</a>
-        <a href="/customers/dealers" class="<%= active === 'dealers' ? 'active' : '' %>">معارض</a>
-        <a href="/customers/new" class="<%= active === 'new' ? 'active' : '' %>">إضافة عملية بيع</a>
-        <a href="/prospects" class="<%= active === 'prospects' ? 'active' : '' %>">العملاء المحتملون</a>
         <a href="/sop" class="<%= active === 'sop' ? 'active' : '' %>">إجراءات التعامل</a>
         <a href="/cars" class="<%= active === 'cars' ? 'active' : '' %>">قائمة السيارات</a>
         <a href="/users" class="<%= active === 'users' ? 'active' : '' %>">المستخدمون</a>
@@ -16,9 +16,6 @@
         <a href="/settings" class="<%= active === 'settings' ? 'active' : '' %>">الإعدادات</a>
         <a href="/data/export.xlsx" class="<%= active === 'backup' ? 'active' : '' %>">نسخة احتياطية (Excel)</a>
         <a href="/data/restore" class="<%= active === 'restore' ? 'active' : '' %>">استعادة</a>
-      <% } else { %>
-        <a href="/customers/new" class="<%= active === 'new' ? 'active' : '' %>">إضافة عملية بيع</a>
-        <a href="/prospects/new" class="<%= active === 'prospects-new' ? 'active' : '' %>">إضافة عميل محتمل</a>
       <% } %>
     </nav>
     <div style="display:flex; align-items:center; gap:10px">

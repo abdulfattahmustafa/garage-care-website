@@ -2,19 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { isReportOverdue, isFollowupDue, reportDeadlineISO, fmtDate } = require('../lib/util');
 
-// Employees don't get a dashboard. This router is mounted at app.use('/', ...)
-// so every request that doesn't match another mount point also passes
-// through here first — the req.path !== '/' check is essential: without it,
-// this would 403 requests meant for completely different routers (like
-// /customers/new) before Express ever gets to try them, since router.use()
-// with no path runs for every request that enters the router, not just ones
-// that end up matching one of its own routes.
-router.use((req, res, next) => {
-  if (req.path !== '/') return next();
-  if (req.session.userRole === 'manager') return next();
-  return res.status(403).render('403');
-});
-
 router.get('/', (req, res) => {
   const db = req.db;
   const now = new Date();

@@ -76,7 +76,7 @@ app.locals.util = require('./lib/util');
 // --- Public routes (no tenant/session yet) ---
 app.get('/login', (req, res) => {
   if (req.session && req.session.userId) {
-    return res.redirect(req.session.userRole === 'manager' ? '/' : '/customers/new');
+    return res.redirect('/');
   }
   res.render('login', { error: null, tenant: req.query.tenant || '' });
 });
@@ -106,9 +106,7 @@ app.post('/login', (req, res) => {
 
   req.db = db;
   logActivity(req, 'تسجيل دخول', {});
-  // Employees can't see the dashboard (manager-only) — send them straight to
-  // the one thing they're allowed to do instead of a page that 403s them.
-  res.redirect(user.role === 'manager' ? '/' : '/customers/new');
+  res.redirect('/');
 });
 
 app.get('/signup', (req, res) => {

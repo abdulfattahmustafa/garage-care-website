@@ -12,13 +12,24 @@ const CUSTOMER_TYPES = ['رخصة واستمارة', 'معارض'];
 const BANKS = ['بنك الجزيرة', 'الإنماء', 'الراجحي', 'الأهلي', 'البلاد', 'الفرنسي', 'الرياض', 'الإمارات', 'شركة عبداللطيف جميل للتمويل', 'شركة سنابل الحديثة للسيارات'];
 const PAGE_SIZE = 20;
 
-// Employees may only add a sale — every other customers/* route (list,
-// detail, edit, delete, followup, attachments...) is manager-only.
+// Employees can view everything under /customers (lists, dealer list,
+// detail pages, attachment downloads) and add new sales, but can't change
+// anything — editing, deleting, followups, report toggling and attachment
+// upload/delete are blocked below.
+const EMPLOYEE_BLOCKED_ROUTES = [
+  { method: 'GET', pattern: /^\/\d+\/edit$/ },
+  { method: 'POST', pattern: /^\/\d+$/ },
+  { method: 'POST', pattern: /^\/\d+\/delete$/ },
+  { method: 'POST', pattern: /^\/\d+\/followup$/ },
+  { method: 'POST', pattern: /^\/\d+\/report$/ },
+  { method: 'POST', pattern: /^\/\d+\/attachments$/ },
+  { method: 'POST', pattern: /^\/\d+\/attachments\/\d+\/delete$/ },
+];
 router.use((req, res, next) => {
   if (req.session.userRole === 'manager') return next();
-  const isAddRoute = (req.method === 'GET' && req.path === '/new') || (req.method === 'POST' && req.path === '/');
-  if (isAddRoute) return next();
-  return res.status(403).render('403');
+  const isBlocked = EMPLOYEE_BLOCKED_ROUTES.some(r => r.method === req.method && r.pattern.test(req.path));
+  if (isBlocked) return res.status(403).render('403');
+  next();
 });
 
 function nowISO() { return new Date().toISOString(); }
@@ -188,11 +199,6 @@ router.post('/', (req, res) => {
     logActivity(req, 'تحويل عميل محتمل لعميل', { entityType: 'prospect', entityId: body.from_prospect_id, details: body.customer_name.trim() });
   }
 
-  // Employees can't view the detail page they'd normally land on — send them
-  // back to a fresh add form with a success flash instead.
-  if (req.session.userRole !== 'manager') {
-    return res.redirect('/customers/new?added=1');
-  }
   res.redirect('/customers/' + info.lastInsertRowid);
 });
 

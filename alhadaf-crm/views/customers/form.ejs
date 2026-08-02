@@ -160,7 +160,7 @@
         <button type="submit" class="btn btn-primary"><%= customer && customer.id ? 'حفظ التعديلات' : 'حفظ العميل' %></button>
         <% if (customer && customer.id) { %>
           <a href="/customers/<%= customer.id %>" class="btn btn-outline">إلغاء</a>
-        <% } else if (typeof userRole !== 'undefined' && userRole === 'manager') { %>
+        <% } else { %>
           <a href="/customers" class="btn btn-outline">إلغاء</a>
         <% } %>
       </div>

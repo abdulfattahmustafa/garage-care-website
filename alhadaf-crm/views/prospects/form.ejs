@@ -69,7 +69,7 @@
         <button type="submit" class="btn btn-primary"><%= prospect && prospect.id ? 'حفظ التعديلات' : 'حفظ' %></button>
         <% if (prospect && prospect.id) { %>
           <a href="/prospects/<%= prospect.id %>" class="btn btn-outline">إلغاء</a>
-        <% } else if (typeof userRole !== 'undefined' && userRole === 'manager') { %>
+        <% } else { %>
           <a href="/prospects" class="btn btn-outline">إلغاء</a>
         <% } %>
       </div>
