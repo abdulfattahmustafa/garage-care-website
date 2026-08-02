@@ -6,6 +6,10 @@
   <main class="page container">
     <div class="section-title"><span class="bar"></span> <%= prospect && prospect.id ? 'تعديل عميل محتمل' : 'إضافة عميل محتمل جديد' %></div>
 
+    <% if (typeof added !== 'undefined' && added) { %>
+      <div class="flash flash-success" style="margin-bottom:16px">تمت إضافة العميل المحتمل بنجاح ✅</div>
+    <% } %>
+
     <form class="card" method="POST" action="<%= prospect && prospect.id ? '/prospects/' + prospect.id : '/prospects' %>">
       <div class="form-row">
         <div class="field">
@@ -63,7 +67,11 @@
 
       <div class="actions-row">
         <button type="submit" class="btn btn-primary"><%= prospect && prospect.id ? 'حفظ التعديلات' : 'حفظ' %></button>
-        <a href="<%= prospect && prospect.id ? '/prospects/' + prospect.id : '/prospects' %>" class="btn btn-outline">إلغاء</a>
+        <% if (prospect && prospect.id) { %>
+          <a href="/prospects/<%= prospect.id %>" class="btn btn-outline">إلغاء</a>
+        <% } else if (typeof userRole !== 'undefined' && userRole === 'manager') { %>
+          <a href="/prospects" class="btn btn-outline">إلغاء</a>
+        <% } %>
       </div>
     </form>
   </main>

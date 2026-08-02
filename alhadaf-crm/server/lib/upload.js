@@ -5,10 +5,18 @@ const tenantDb = require('../tenantDb');
 // Only a small allow-list of document/image types — never trust the
 // client-supplied filename or extension, only the sniffed mimetype, and
 // always write with a randomized name (no user input in the stored path).
+// Includes real-world mimetype variants that legitimate uploads actually
+// send and the strict standard list was wrongly rejecting: 'image/jpg' (some
+// browsers/devices use this non-standard form instead of 'image/jpeg'), and
+// 'image/heic'/'image/heif' (the default photo format on iPhones — very
+// common for someone photographing an ID card straight from their phone).
 const ALLOWED_TYPES = {
   'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
   'image/png': '.png',
   'image/webp': '.webp',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
   'application/pdf': '.pdf',
 };
 
@@ -27,7 +35,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
     if (!ALLOWED_TYPES[file.mimetype]) {
-      return cb(new Error('نوع الملف غير مسموح — بس صور (JPG/PNG/WEBP) أو PDF'));
+      return cb(new Error('نوع الملف غير مسموح — بس صور (JPG/PNG/WEBP/HEIC) أو PDF'));
     }
     cb(null, true);
   },

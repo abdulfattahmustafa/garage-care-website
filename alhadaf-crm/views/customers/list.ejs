@@ -1,18 +1,19 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
-<head><%- include('../partials/head', { title: 'العملاء' }) %></head>
+<head><%- include('../partials/head', { title: isDealerSection ? 'المعارض' : 'العملاء' }) %></head>
 <body>
-  <%- include('../partials/nav', { active: 'customers' }) %>
+  <%- include('../partials/nav', { active: isDealerSection ? 'dealers' : 'customers' }) %>
   <main class="page container">
+    <% const basePath = isDealerSection ? '/customers/dealers' : '/customers'; %>
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px">
-      <div class="section-title" style="margin:0"><span class="bar"></span> العملاء (<%= total %>)</div>
+      <div class="section-title" style="margin:0"><span class="bar"></span> <%= isDealerSection ? 'المعارض' : 'العملاء' %> (<%= total %>)</div>
       <div style="display:flex; gap:10px">
-        <a href="/data/export.csv?q=<%= encodeURIComponent(q) %>&payment_method=<%= encodeURIComponent(payment_method) %>&salesperson=<%= encodeURIComponent(salesperson) %>&month=<%= encodeURIComponent(month) %>&status=<%= encodeURIComponent(status) %>" class="btn btn-outline">⬇️ تصدير النتائج Excel/CSV</a>
-        <a href="/customers/new" class="btn btn-primary">+ إضافة عملية بيع</a>
+        <a href="/data/export.csv?q=<%= encodeURIComponent(q) %>&payment_method=<%= encodeURIComponent(payment_method) %>&salesperson=<%= encodeURIComponent(salesperson) %>&month=<%= encodeURIComponent(month) %>&status=<%= encodeURIComponent(status) %>&customer_type=<%= encodeURIComponent(isDealerSection ? 'معارض' : 'رخصة واستمارة') %>" class="btn btn-outline">⬇️ تصدير النتائج Excel/CSV</a>
+        <a href="/customers/new<%= isDealerSection ? '?type=dealer' : '' %>" class="btn btn-primary">+ <%= isDealerSection ? 'إضافة معرض' : 'إضافة عملية بيع' %></a>
       </div>
     </div>
 
-    <form class="filters" method="GET" action="/customers">
+    <form class="filters" method="GET" action="<%= basePath %>">
       <input type="text" name="q" placeholder="بحث بالاسم، الهوية، VIN، الاستمارة، الجوال، السيارة..." value="<%= q %>">
       <select name="payment_method">
         <option value="">كل طرق الدفع</option>
@@ -34,25 +35,25 @@
       </select>
       <input type="month" name="month" value="<%= month %>">
       <button type="submit" class="btn btn-primary btn-sm">بحث</button>
-      <a href="/customers" class="btn btn-outline btn-sm">تفريغ</a>
+      <a href="<%= basePath %>" class="btn btn-outline btn-sm">تفريغ</a>
     </form>
 
     <% function sortLink(col, label) {
       const newDir = (sort === col && dir === 'asc') ? 'desc' : 'asc';
       const qs = `q=${encodeURIComponent(q)}&payment_method=${encodeURIComponent(payment_method)}&salesperson=${encodeURIComponent(salesperson)}&month=${encodeURIComponent(month)}&status=${encodeURIComponent(status)}&sort=${col}&dir=${newDir}`;
       const arrow = sort === col ? (dir === 'asc' ? ' ▲' : ' ▼') : '';
-      return `<a href="/customers?${qs}">${label}${arrow}</a>`;
+      return `<a href="${basePath}?${qs}">${label}${arrow}</a>`;
     } %>
 
     <% if (!rows.length) { %>
-      <div class="empty-state">لا يوجد عملاء مطابقين لبحثك.</div>
+      <div class="empty-state">لا يوجد <%= isDealerSection ? 'معارض' : 'عملاء' %> مطابقين لبحثك.</div>
     <% } else { %>
     <div class="table-wrap card" style="padding:0">
       <table>
         <thead>
           <tr>
-            <th><%- sortLink('customer_name', 'الاسم') %></th>
-            <th>الهوية</th>
+            <th><%- sortLink('customer_name', isDealerSection ? 'اسم المعرض' : 'الاسم') %></th>
+            <th><%= isDealerSection ? 'رقم ال700' : 'الهوية' %></th>
             <th><%- sortLink('sale_date', 'تاريخ البيع') %></th>
             <th><%- sortLink('car_type', 'السيارة') %></th>
             <th>الجوال</th>
@@ -93,7 +94,7 @@
           <% if (p === page) { %>
             <span class="current"><%= p %></span>
           <% } else { %>
-            <a href="/customers?<%= qs %>"><%= p %></a>
+            <a href="<%= basePath %>?<%= qs %>"><%= p %></a>
           <% } %>
         <% } %>
       </div>

@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head><%- include('../partials/head', { title: customer.customer_name }) %></head>
 <body>
-  <%- include('../partials/nav', { active: 'customers' }) %>
+  <%- include('../partials/nav', { active: customer.customer_type === 'معارض' ? 'dealers' : 'customers' }) %>
   <main class="page container">
 
     <% if (uploadError) { %><div class="flash flash-error"><%= uploadError %></div><% } %>
@@ -31,12 +31,15 @@
           <div><div class="k"><%= customer.customer_type === 'معارض' ? 'رقم ال700' : 'رقم الهوية' %></div><div class="v"><%= customer.national_id %></div></div>
           <div><div class="k">الجوال</div><div class="v"><%= customer.phone || '—' %></div></div>
           <div><div class="k">تاريخ البيع</div><div class="v"><%= customer.sale_date %></div></div>
-          <div><div class="k">وقت التسليم</div><div class="v"><%= customer.delivery_at ? customer.delivery_at.replace('T',' ') : '—' %></div></div>
+          <div><div class="k">تاريخ التسليم</div><div class="v"><%= customer.delivery_at ? customer.delivery_at.replace('T',' ') : '—' %></div></div>
           <div><div class="k">نوع السيارة</div><div class="v"><%= customer.car_type %></div></div>
           <div><div class="k">سعر البيع</div><div class="v"><%= customer.price ? Number(customer.price).toLocaleString('en-US') + ' ريال' : '—' %></div></div>
           <div><div class="k">رقم الهيكل VIN</div><div class="v"><%= customer.vin %></div></div>
           <div><div class="k">رقم الاستمارة</div><div class="v"><%= customer.estimara_number || '—' %></div></div>
           <div><div class="k">طريقة الدفع</div><div class="v"><%= customer.payment_method %></div></div>
+          <% if (customer.bank_name) { %>
+            <div><div class="k">الجهة الممولة</div><div class="v"><%= customer.bank_name %></div></div>
+          <% } %>
           <div><div class="k">البائع المسؤول</div><div class="v"><%= customer.salesperson || '—' %></div></div>
           <div><div class="k">الحالة</div><div class="v"><span class="badge badge-gray"><%= customer.status %></span></div></div>
         </div>
@@ -70,6 +73,7 @@
           <button type="submit" class="btn btn-outline btn-sm"><%= customer.reported ? 'التراجع عن التبليغ' : 'وضع علامة "تم التبليغ"' %></button>
         </form>
 
+        <% if (customer.customer_type !== 'معارض') { %>
         <div class="divider"></div>
 
         <p><strong>متابعة ما بعد البيع:</strong>
@@ -95,45 +99,8 @@
           <button type="submit" class="btn btn-primary btn-sm">تسجيل نتيجة المتابعة</button>
         </form>
         <% } %>
+        <% } %>
       </div>
-    </div>
-
-    <div class="card" style="margin-top:20px">
-      <div class="section-title" style="font-size:16px"><span class="bar"></span> سجل التواصل</div>
-
-      <form method="POST" action="/customers/<%= customer.id %>/contact" class="form-row" style="align-items:flex-end">
-        <div class="field" style="flex:0 0 160px">
-          <label>التاريخ</label>
-          <input type="date" name="contact_date" value="<%= new Date().toISOString().slice(0,10) %>" required>
-        </div>
-        <div class="field" style="flex:0 0 160px">
-          <label>نوع التواصل</label>
-          <select name="type">
-            <option value="مكالمة">مكالمة</option>
-            <option value="زيارة">زيارة</option>
-            <option value="رسالة">رسالة</option>
-          </select>
-        </div>
-        <div class="field" style="flex:1 1 260px">
-          <label>الملاحظة</label>
-          <input type="text" name="note" placeholder="تفاصيل التواصل...">
-        </div>
-        <div class="field" style="flex:0 0 auto">
-          <button type="submit" class="btn btn-primary">إضافة</button>
-        </div>
-      </form>
-
-      <div class="divider"></div>
-
-      <% if (!contacts.length) { %>
-        <p class="muted">لا يوجد سجل تواصل بعد.</p>
-      <% } %>
-      <% contacts.forEach(l => { %>
-        <div class="log-item">
-          <div class="date"><%= l.contact_date %> <span class="badge badge-gray"><%= l.type || 'تواصل' %></span></div>
-          <% if (l.note) { %><div class="note"><%= l.note %></div><% } %>
-        </div>
-      <% }) %>
     </div>
 
     <div class="card" style="margin-top:20px">
@@ -151,7 +118,7 @@
         </div>
         <div class="field" style="flex:1 1 220px">
           <label>الملف (صورة أو PDF، أقل من 10 ميقابايت)</label>
-          <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf" required>
+          <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif,application/pdf" required>
         </div>
         <div class="field" style="flex:0 0 auto">
           <button type="submit" class="btn btn-primary">رفع</button>

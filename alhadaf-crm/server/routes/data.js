@@ -7,11 +7,13 @@ const ExcelJS = require('exceljs');
 const { isReportOverdue, isFollowupDue, fmtDate } = require('../lib/util');
 
 const CSV_FIELDS = [
+  { label: 'نوع العميل', value: 'customer_type' },
   { label: 'اسم العميل', value: 'customer_name' },
   { label: 'رقم الهوية', value: 'national_id' },
   { label: 'تاريخ البيع', value: 'sale_date' },
   { label: 'طريقة الدفع', value: 'payment_method' },
-  { label: 'وقت التسليم', value: 'delivery_at' },
+  { label: 'الجهة الممولة', value: 'bank_name' },
+  { label: 'تاريخ التسليم', value: 'delivery_at' },
   { label: 'نوع السيارة', value: 'car_type' },
   { label: 'رقم الهيكل VIN', value: 'vin' },
   { label: 'رقم الاستمارة', value: 'estimara_number' },
@@ -27,7 +29,7 @@ const CSV_FIELDS = [
 // filters used on the customers list page so a filtered search can be exported.
 router.get('/export.csv', (req, res) => {
   const db = req.db;
-  const { q = '', payment_method = '', salesperson = '', month = '', status = '' } = req.query;
+  const { q = '', payment_method = '', salesperson = '', month = '', status = '', customer_type = '' } = req.query;
   let where = [];
   let params = {};
   if (q) { where.push(`(customer_name LIKE @q OR national_id LIKE @q OR vin LIKE @q OR estimara_number LIKE @q OR phone LIKE @q OR car_type LIKE @q)`); params.q = `%${q}%`; }
@@ -35,6 +37,7 @@ router.get('/export.csv', (req, res) => {
   if (salesperson) { where.push('salesperson = @salesperson'); params.salesperson = salesperson; }
   if (status) { where.push('status = @status'); params.status = status; }
   if (month) { where.push(`substr(sale_date, 1, 7) = @month`); params.month = month; }
+  if (customer_type) { where.push('customer_type = @customer_type'); params.customer_type = customer_type; }
   const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
   const rows = db.prepare(`SELECT * FROM customers ${whereSql} ORDER BY sale_date DESC`).all(params);
@@ -70,11 +73,11 @@ router.get('/export.xlsx', async (req, res) => {
   const salesThisMonth = rows.filter(c => c.sale_date.slice(0, 7) === thisMonth).length;
   const salesThisYear = rows.filter(c => c.sale_date.slice(0, 4) === thisYear).length;
   const overdueCount = rows.filter(c => isReportOverdue(c, now)).length;
-  const pendingFollowupCount = rows.filter(c => isFollowupDue(c, now)).length;
+  const pendingFollowupCount = rows.filter(c => c.customer_type !== 'معارض' && isFollowupDue(c, now)).length;
 
-  const headers = ['اسم العميل', 'رقم الهوية', 'تاريخ البيع', 'طريقة الدفع', 'وقت التسليم', 'نوع السيارة',
+  const headers = ['نوع العميل', 'اسم العميل', 'رقم الهوية', 'تاريخ البيع', 'طريقة الدفع', 'الجهة الممولة', 'تاريخ التسليم', 'نوع السيارة',
     'رقم الهيكل VIN', 'رقم الاستمارة', 'الجوال', 'البائع', 'السعر', 'الحالة', 'تم التبليغ', 'متابعة ما بعد البيع', 'ملاحظات'];
-  const widths = [20, 14, 12, 20, 16, 20, 20, 16, 14, 16, 12, 14, 12, 16, 30];
+  const widths = [14, 20, 14, 12, 14, 20, 16, 20, 20, 16, 14, 16, 12, 14, 12, 16, 30];
   const colCount = headers.length;
 
   const wb = new ExcelJS.Workbook();
@@ -152,7 +155,7 @@ router.get('/export.xlsx', async (req, res) => {
 
   rows.forEach((c, idx) => {
     const values = [
-      c.customer_name, c.national_id, c.sale_date, c.payment_method,
+      c.customer_type, c.customer_name, c.national_id, c.sale_date, c.payment_method, c.bank_name || '',
       c.delivery_at ? c.delivery_at.replace('T', ' ') : '', c.car_type, c.vin, c.estimara_number,
       c.phone || '', c.salesperson || '', c.price || '', c.status,
       c.reported ? 'نعم' : 'لا',
@@ -238,9 +241,14 @@ router.post('/restore', (req, res) => {
       }
 
       const insCustomer = db.prepare(`INSERT INTO customers
-        (id, customer_name, national_id, sale_date, payment_method, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, reported_at, followup_done, followup_result, followup_note, followup_at, created_by, updated_by, is_demo, created_at, updated_at)
-        VALUES (@id, @customer_name, @national_id, @sale_date, @payment_method, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, @reported, @reported_at, @followup_done, @followup_result, @followup_note, @followup_at, @created_by, @updated_by, @is_demo, @created_at, @updated_at)`);
-      for (const c of payload.customers) insCustomer.run(c);
+        (id, customer_type, customer_name, national_id, sale_date, payment_method, bank_name, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, reported_at, followup_done, followup_result, followup_note, followup_at, created_by, updated_by, is_demo, created_at, updated_at)
+        VALUES (@id, @customer_type, @customer_name, @national_id, @sale_date, @payment_method, @bank_name, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, @reported, @reported_at, @followup_done, @followup_result, @followup_note, @followup_at, @created_by, @updated_by, @is_demo, @created_at, @updated_at)`);
+      // Backups taken before customer_type/bank_name existed won't have
+      // these keys on each row — default customer_type to the normal retail
+      // type (matches the schema's own default) and bank_name to null.
+      for (const c of payload.customers) {
+        insCustomer.run({ customer_type: 'رخصة واستمارة', bank_name: null, ...c });
+      }
 
       if (Array.isArray(payload.contact_log)) {
         const insContact = db.prepare(`INSERT INTO contact_log (id, customer_id, contact_date, type, note, created_at) VALUES (@id, @customer_id, @contact_date, @type, @note, @created_at)`);

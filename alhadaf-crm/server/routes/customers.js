@@ -9,7 +9,17 @@ const { uploadSingle, getUploadsDir } = require('../lib/upload');
 const PAYMENT_METHODS = ['نقدي', 'تمويل', 'شركات', 'جهات حكومية'];
 const STATUSES = ['جديد', 'تم التسليم', 'تمت المتابعة', 'عميل متكرر'];
 const CUSTOMER_TYPES = ['رخصة واستمارة', 'معارض'];
+const BANKS = ['بنك الجزيرة', 'الإنماء', 'الراجحي', 'الأهلي', 'البلاد', 'الفرنسي', 'الرياض', 'الإمارات', 'شركة عبداللطيف جميل للتمويل', 'شركة سنابل الحديثة للسيارات'];
 const PAGE_SIZE = 20;
+
+// Employees may only add a sale — every other customers/* route (list,
+// detail, edit, delete, followup, attachments...) is manager-only.
+router.use((req, res, next) => {
+  if (req.session.userRole === 'manager') return next();
+  const isAddRoute = (req.method === 'GET' && req.path === '/new') || (req.method === 'POST' && req.path === '/');
+  if (isAddRoute) return next();
+  return res.status(403).render('403');
+});
 
 function nowISO() { return new Date().toISOString(); }
 
@@ -30,15 +40,19 @@ function getCarInventory(db) {
 }
 
 // --- List with search / filter / sort / pagination ---
-router.get('/', (req, res) => {
+// Shared by /customers (individual "رخصة واستمارة" sales) and /customers/dealers
+// (wholesale "معارض" sales) — the two are kept as fully separate sections
+// per the owner's request, each hardcoded to its own customer_type rather
+// than a togglable filter on one merged list.
+function renderCustomerList(req, res, customerType) {
   const db = req.db;
   const { q = '', payment_method = '', salesperson = '', month = '', status = '' } = req.query;
   const sortCol = ['sale_date', 'customer_name', 'car_type', 'price', 'status'].includes(req.query.sort) ? req.query.sort : 'sale_date';
   const dir = req.query.dir === 'asc' ? 'ASC' : 'DESC';
   const page = Math.max(1, parseInt(req.query.page) || 1);
 
-  let where = [];
-  let params = {};
+  let where = ['customer_type = @customer_type'];
+  let params = { customer_type: customerType };
 
   if (q) {
     where.push(`(customer_name LIKE @q OR national_id LIKE @q OR vin LIKE @q OR estimara_number LIKE @q OR phone LIKE @q OR car_type LIKE @q)`);
@@ -49,7 +63,7 @@ router.get('/', (req, res) => {
   if (status) { where.push('status = @status'); params.status = status; }
   if (month) { where.push(`substr(sale_date, 1, 7) = @month`); params.month = month; }
 
-  const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
+  const whereSql = 'WHERE ' + where.join(' AND ');
 
   const total = db.prepare(`SELECT COUNT(*) c FROM customers ${whereSql}`).get(params).c;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -64,8 +78,12 @@ router.get('/', (req, res) => {
     sort: sortCol, dir: dir.toLowerCase(),
     PAYMENT_METHODS, STATUSES, salespeople: getSalespeople(db),
     isReportOverdue,
+    isDealerSection: customerType === 'معارض',
   });
-});
+}
+
+router.get('/', (req, res) => renderCustomerList(req, res, 'رخصة واستمارة'));
+router.get('/dealers', (req, res) => renderCustomerList(req, res, 'معارض'));
 
 router.get('/new', (req, res) => {
   const db = req.db;
@@ -82,7 +100,10 @@ router.get('/new', (req, res) => {
       };
     }
   }
-  res.render('customers/form', { customer: prefill, errors: {}, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
+  if (req.query.type === 'dealer') {
+    prefill = { ...(prefill || {}), customer_type: 'معارض' };
+  }
+  res.render('customers/form', { customer: prefill, errors: {}, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), added: req.query.added === '1' });
 });
 
 // "رخصة واستمارة" is a normal retail sale to an individual; "معارض" is a
@@ -105,6 +126,9 @@ function validateBody(body) {
   if (!body.sale_date) errors.sale_date = 'تاريخ البيع إلزامي';
   const allowedPayments = isDealer ? ['نقدي'] : PAYMENT_METHODS;
   if (!allowedPayments.includes(body.payment_method)) errors.payment_method = 'اختر طريقة دفع صحيحة';
+  if (!isDealer && body.payment_method === 'تمويل' && !BANKS.includes(body.bank_name)) {
+    errors.bank_name = 'اختر الجهة الممولة';
+  }
   if (!body.car_type || !body.car_type.trim()) errors.car_type = 'نوع السيارة إلزامي';
   if (!body.vin || !body.vin.trim()) errors.vin = 'رقم الهيكل إلزامي';
   if (!isDealer && (!body.estimara_number || !body.estimara_number.trim())) errors.estimara_number = 'رقم الاستمارة إلزامي';
@@ -127,13 +151,13 @@ router.post('/', (req, res) => {
   }
 
   if (Object.keys(errors).length) {
-    return res.status(400).render('customers/form', { customer: body, errors, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
+    return res.status(400).render('customers/form', { customer: body, errors, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
   }
 
   const ts = nowISO();
   const stmt = db.prepare(`INSERT INTO customers
-    (customer_type, customer_name, national_id, sale_date, payment_method, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, followup_done, created_by, updated_by, is_demo, created_at, updated_at)
-    VALUES (@customer_type, @customer_name, @national_id, @sale_date, @payment_method, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, 0, 0, @created_by, @updated_by, 0, @created_at, @updated_at)`);
+    (customer_type, customer_name, national_id, sale_date, payment_method, bank_name, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, followup_done, created_by, updated_by, is_demo, created_at, updated_at)
+    VALUES (@customer_type, @customer_name, @national_id, @sale_date, @payment_method, @bank_name, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, 0, 0, @created_by, @updated_by, 0, @created_at, @updated_at)`);
 
   const info = stmt.run({
     customer_type: CUSTOMER_TYPES.includes(body.customer_type) ? body.customer_type : CUSTOMER_TYPES[0],
@@ -141,6 +165,7 @@ router.post('/', (req, res) => {
     national_id: body.national_id.trim(),
     sale_date: body.sale_date,
     payment_method: body.payment_method,
+    bank_name: body.payment_method === 'تمويل' && BANKS.includes(body.bank_name) ? body.bank_name : null,
     delivery_at: body.delivery_at || null,
     car_type: body.car_type.trim(),
     car_inventory_id: body.car_inventory_id ? parseInt(body.car_inventory_id) : null,
@@ -163,6 +188,11 @@ router.post('/', (req, res) => {
     logActivity(req, 'تحويل عميل محتمل لعميل', { entityType: 'prospect', entityId: body.from_prospect_id, details: body.customer_name.trim() });
   }
 
+  // Employees can't view the detail page they'd normally land on — send them
+  // back to a fresh add form with a success flash instead.
+  if (req.session.userRole !== 'manager') {
+    return res.redirect('/customers/new?added=1');
+  }
   res.redirect('/customers/' + info.lastInsertRowid);
 });
 
@@ -170,16 +200,15 @@ router.get('/:id', (req, res) => {
   const db = req.db;
   const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   if (!customer) return res.status(404).render('404');
-  const contacts = db.prepare('SELECT * FROM contact_log WHERE customer_id = ? ORDER BY contact_date DESC, id DESC').all(customer.id);
   const attachments = db.prepare('SELECT * FROM attachments WHERE customer_id = ? ORDER BY created_at DESC').all(customer.id);
-  res.render('customers/detail', { customer, contacts, attachments, isReportOverdue, uploadError: req.query.error || null });
+  res.render('customers/detail', { customer, attachments, isReportOverdue, uploadError: req.query.error || null });
 });
 
 router.get('/:id/edit', (req, res) => {
   const db = req.db;
   const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   if (!customer) return res.status(404).render('404');
-  res.render('customers/form', { customer, errors: {}, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
+  res.render('customers/form', { customer, errors: {}, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
 });
 
 router.post('/:id', (req, res) => {
@@ -200,11 +229,11 @@ router.post('/:id', (req, res) => {
   }
 
   if (Object.keys(errors).length) {
-    return res.status(400).render('customers/form', { customer: { ...body, id: req.params.id }, errors, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
+    return res.status(400).render('customers/form', { customer: { ...body, id: req.params.id }, errors, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
   }
 
   db.prepare(`UPDATE customers SET
-    customer_type=@customer_type, customer_name=@customer_name, national_id=@national_id, sale_date=@sale_date, payment_method=@payment_method,
+    customer_type=@customer_type, customer_name=@customer_name, national_id=@national_id, sale_date=@sale_date, payment_method=@payment_method, bank_name=@bank_name,
     delivery_at=@delivery_at, car_type=@car_type, car_inventory_id=@car_inventory_id, vin=@vin, estimara_number=@estimara_number, phone=@phone,
     salesperson=@salesperson, price=@price, notes=@notes, status=@status, updated_by=@updated_by, updated_at=@updated_at
     WHERE id=@id`).run({
@@ -213,6 +242,7 @@ router.post('/:id', (req, res) => {
     national_id: body.national_id.trim(),
     sale_date: body.sale_date,
     payment_method: body.payment_method,
+    bank_name: body.payment_method === 'تمويل' && BANKS.includes(body.bank_name) ? body.bank_name : null,
     delivery_at: body.delivery_at || null,
     car_type: body.car_type.trim(),
     car_inventory_id: body.car_inventory_id ? parseInt(body.car_inventory_id) : null,
@@ -241,15 +271,6 @@ router.post('/:id/delete', (req, res) => {
   files.forEach(f => fs.unlink(path.join(uploadsDir, f.stored_name), () => {}));
   if (customer) logActivity(req, 'حذف عميل', { entityType: 'customer', entityId: req.params.id, details: customer.customer_name });
   res.redirect('/customers');
-});
-
-router.post('/:id/contact', (req, res) => {
-  const db = req.db;
-  const { contact_date, type, note } = req.body;
-  db.prepare('INSERT INTO contact_log (customer_id, contact_date, type, note, created_at) VALUES (?,?,?,?,?)')
-    .run(req.params.id, contact_date || nowISO().slice(0, 10), type || null, note || null, nowISO());
-  logActivity(req, 'إضافة تواصل', { entityType: 'customer', entityId: req.params.id, details: type || 'تواصل' });
-  res.redirect('/customers/' + req.params.id);
 });
 
 router.post('/:id/followup', (req, res) => {

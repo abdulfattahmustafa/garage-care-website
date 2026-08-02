@@ -6,6 +6,10 @@
   <main class="page container">
     <div class="section-title"><span class="bar"></span> <%= customer && customer.id ? 'تعديل بيانات عملية البيع' : 'إضافة عملية بيع جديدة' %></div>
 
+    <% if (typeof added !== 'undefined' && added) { %>
+      <div class="flash flash-success" style="margin-bottom:16px">تمت إضافة عملية البيع بنجاح ✅</div>
+    <% } %>
+
     <form class="card" method="POST" action="<%= customer && customer.id ? '/customers/' + customer.id : '/customers' %>">
       <% if (customer && customer.from_prospect_id) { %>
         <input type="hidden" name="from_prospect_id" value="<%= customer.from_prospect_id %>">
@@ -59,6 +63,20 @@
         </div>
       </div>
 
+      <div class="form-row" id="bankRow" style="display:none">
+        <div class="field">
+          <label>الجهة الممولة *</label>
+          <select name="bank_name" id="bankSelect" class="<%= errors.bank_name ? 'invalid' : '' %>">
+            <option value="">اختر...</option>
+            <% BANKS.forEach(b => { %>
+              <option value="<%= b %>" <%= customer && customer.bank_name===b ? 'selected':'' %>><%= b %></option>
+            <% }) %>
+          </select>
+          <% if (errors.bank_name) { %><div class="err"><%= errors.bank_name %></div><% } %>
+        </div>
+        <div class="field"></div>
+      </div>
+
       <div class="form-row">
         <div class="field">
           <label>تاريخ البيع *</label>
@@ -66,9 +84,9 @@
           <% if (errors.sale_date) { %><div class="err"><%= errors.sale_date %></div><% } %>
         </div>
         <div class="field">
-          <label>وقت التسليم</label>
-          <input type="datetime-local" name="delivery_at" value="<%= customer ? (customer.delivery_at || '').slice(0,16) : '' %>">
-          <div class="hint">تُستخدم لحساب تذكير المتابعة بعد 24 ساعة</div>
+          <label>تاريخ التسليم</label>
+          <input type="date" name="delivery_at" value="<%= customer ? (customer.delivery_at || '').slice(0,10) : '' %>">
+          <div class="hint" id="deliveryHint">تُستخدم لحساب تذكير المتابعة بعد 24 ساعة</div>
         </div>
       </div>
 
@@ -140,7 +158,11 @@
 
       <div class="actions-row">
         <button type="submit" class="btn btn-primary"><%= customer && customer.id ? 'حفظ التعديلات' : 'حفظ العميل' %></button>
-        <a href="<%= customer && customer.id ? '/customers/' + customer.id : '/customers' %>" class="btn btn-outline">إلغاء</a>
+        <% if (customer && customer.id) { %>
+          <a href="/customers/<%= customer.id %>" class="btn btn-outline">إلغاء</a>
+        <% } else if (typeof userRole !== 'undefined' && userRole === 'manager') { %>
+          <a href="/customers" class="btn btn-outline">إلغاء</a>
+        <% } %>
       </div>
     </form>
   </main>
@@ -159,6 +181,19 @@
     const paymentDealerHidden = document.getElementById('paymentDealerHidden');
     const labelEstimara = document.getElementById('labelEstimara');
     const estimaraInput = document.getElementById('estimaraInput');
+    const deliveryHint = document.getElementById('deliveryHint');
+    const bankRow = document.getElementById('bankRow');
+    const bankSelect = document.getElementById('bankSelect');
+
+    // خانة "الجهة الممولة" تظهر بس لما طريقة الدفع = تمويل (وما ينطبق على
+    // المعارض أصلاً، لأن طريقة دفعهم مقفولة على نقدي دائمًا).
+    function updateBankVisibility() {
+      const showBank = !typeDealer.checked && paymentSelect.value === 'تمويل';
+      bankRow.style.display = showBank ? '' : 'none';
+      bankSelect.required = showBank;
+      if (!showBank) bankSelect.value = '';
+    }
+    paymentSelect.addEventListener('change', updateBankVisibility);
 
     function applyCustomerType() {
       const isDealer = typeDealer.checked;
@@ -182,6 +217,10 @@
 
       labelEstimara.textContent = isDealer ? 'رقم الاستمارة (اختياري)' : 'رقم الاستمارة *';
       estimaraInput.required = !isDealer;
+
+      deliveryHint.style.display = isDealer ? 'none' : '';
+
+      updateBankVisibility();
     }
 
     typeLicense.addEventListener('change', applyCustomerType);

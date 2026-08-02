@@ -75,7 +75,9 @@ app.locals.util = require('./lib/util');
 
 // --- Public routes (no tenant/session yet) ---
 app.get('/login', (req, res) => {
-  if (req.session && req.session.userId) return res.redirect('/');
+  if (req.session && req.session.userId) {
+    return res.redirect(req.session.userRole === 'manager' ? '/' : '/customers/new');
+  }
   res.render('login', { error: null, tenant: req.query.tenant || '' });
 });
 
@@ -104,7 +106,9 @@ app.post('/login', (req, res) => {
 
   req.db = db;
   logActivity(req, 'تسجيل دخول', {});
-  res.redirect('/');
+  // Employees can't see the dashboard (manager-only) — send them straight to
+  // the one thing they're allowed to do instead of a page that 403s them.
+  res.redirect(user.role === 'manager' ? '/' : '/customers/new');
 });
 
 app.get('/signup', (req, res) => {
@@ -251,12 +255,17 @@ app.use((req, res, next) => {
   next();
 });
 
+// NOTE: dashboard is deliberately NOT gated with `requireManager` here as
+// `app.use('/', requireManager, ...)` — Express treats '/' as a prefix
+// matching every path, so that would apply requireManager to every route
+// mounted after it too (customers/new included). dashboard.js gates itself
+// internally instead, same pattern as customers.js/prospects.js.
 app.use('/', require('./routes/dashboard'));
 app.use('/customers', require('./routes/customers'));
-app.use('/sop', require('./routes/sop'));
+app.use('/sop', requireManager, require('./routes/sop'));
 app.use('/data', requireManager, require('./routes/data'));
 app.use('/settings', requireManager, require('./routes/settings'));
-app.use('/cars', require('./routes/cars'));
+app.use('/cars', requireManager, require('./routes/cars'));
 app.use('/users', requireManager, require('./routes/users'));
 app.use('/prospects', require('./routes/prospects'));
 app.use('/activity', requireManager, require('./routes/activity'));

@@ -8,6 +8,15 @@ const TERMINAL_STAGES = ['لم يتم البيع', 'تحوّل لعميل'];
 const SOURCES = ['زيارة مباشرة', 'اتصال هاتفي', 'إنستقرام', 'سناب شات', 'تيك توك', 'واتساب', 'توصية من عميل', 'موقع إلكتروني', 'أخرى'];
 const PAGE_SIZE = 20;
 
+// Employees may only add a prospect — every other prospects/* route (list,
+// detail, edit, delete, contact log) is manager-only.
+router.use((req, res, next) => {
+  if (req.session.userRole === 'manager') return next();
+  const isAddRoute = (req.method === 'GET' && req.path === '/new') || (req.method === 'POST' && req.path === '/');
+  if (isAddRoute) return next();
+  return res.status(403).render('403');
+});
+
 function nowISO() { return new Date().toISOString(); }
 
 function getSalespeople(db) {
@@ -68,7 +77,7 @@ router.get('/', (req, res) => {
 });
 
 router.get('/new', (req, res) => {
-  res.render('prospects/form', { prospect: null, errors: {}, STAGES, SOURCES, salespeople: getSalespeople(req.db) });
+  res.render('prospects/form', { prospect: null, errors: {}, STAGES, SOURCES, salespeople: getSalespeople(req.db), added: req.query.added === '1' });
 });
 
 function validateBody(body) {
@@ -113,6 +122,10 @@ router.post('/', (req, res) => {
     });
 
   logActivity(req, 'إضافة عميل محتمل', { entityType: 'prospect', entityId: info.lastInsertRowid, details: body.name.trim() + (autoAssigned ? ` (توزيع تلقائي على ${salesperson})` : '') });
+
+  if (req.session.userRole !== 'manager') {
+    return res.redirect('/prospects/new?added=1');
+  }
   res.redirect('/prospects/' + info.lastInsertRowid);
 });
 
