@@ -319,7 +319,16 @@ router.post('/:id/attachments',
       res.redirect('/customers/' + req.params.id);
     } catch (err) {
       console.error('خطأ برفع مرفق:', err);
-      res.redirect(`/customers/${req.params.id}?error=${encodeURIComponent('صار خطأ أثناء حفظ المرفق، جرّب مرة ثانية')}`);
+      // SQLite fails writes (even tiny ones — INSERT needs room to grow the
+      // WAL file) with "disk full"/"SQLITE_FULL" when the volume is out of
+      // space — a very different, and very common, real cause from a bad
+      // customer id. Surfaced explicitly instead of the generic message so
+      // it's actionable (the persistent disk needs to be resized) rather
+      // than just "try again", which won't help if the disk is actually full.
+      const msg = /disk.*full|SQLITE_FULL|ENOSPC/i.test(err.message || '')
+        ? 'مساحة التخزين ممتلئة على الخادم — تواصل مع الدعم الفني لزيادة المساحة'
+        : 'صار خطأ أثناء حفظ المرفق، جرّب مرة ثانية';
+      res.redirect(`/customers/${req.params.id}?error=${encodeURIComponent(msg)}`);
     }
   });
 
