@@ -49,6 +49,11 @@ function uploadSingle(field, onError) {
       if (err) {
         let message = err.message;
         if (err.code === 'LIMIT_FILE_SIZE') message = 'الملف كبير جدًا — الحد الأقصى 10 ميقابايت';
+        // ENOSPC/EACCES/EROFS surface from the disk storage engine as raw
+        // Node error text — not something to show a non-technical user.
+        else if (err.code === 'ENOSPC') message = 'مساحة التخزين ممتلئة على الخادم — تواصل مع الدعم الفني';
+        else if (err.code === 'EACCES' || err.code === 'EROFS') message = 'خطأ بصلاحيات الخادم أثناء حفظ الملف — تواصل مع الدعم الفني';
+        console.error('خطأ برفع ملف:', err);
         return onError(req, res, message);
       }
       next();

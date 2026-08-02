@@ -272,6 +272,19 @@ app.use((req, res) => {
   res.status(404).render('404');
 });
 
+// Last-resort safety net: without this, any uncaught exception in a route
+// handler falls through to Express's default error handler, which shows
+// nothing but a bare "Internal Server Error" to the user and no way to
+// diagnose what happened. This logs the real error server-side (so it shows
+// up in the hosting provider's logs) and shows a friendly Arabic page
+// instead. It does not replace fixing the underlying bug — it's a backstop
+// for whatever we haven't anticipated.
+app.use((err, req, res, next) => {
+  console.error('خطأ غير متوقع:', err);
+  if (res.headersSent) return next(err);
+  res.status(500).render('500', { message: err.message || '' });
+});
+
 app.listen(PORT, () => {
   console.log(`\n✅ نظام إدارة علاقات العملاء يعمل الآن (متعدد المعارض)`);
   console.log(`🔗 افتح المتصفح على: http://localhost:${PORT}\n`);

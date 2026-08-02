@@ -291,6 +291,7 @@ router.post('/:id/followup', (req, res) => {
 router.post('/:id/report', (req, res) => {
   const db = req.db;
   const customer = db.prepare('SELECT reported FROM customers WHERE id = ?').get(req.params.id);
+  if (!customer) return res.status(404).render('404');
   const newVal = customer.reported ? 0 : 1;
   db.prepare(`UPDATE customers SET reported=?, reported_at=?, updated_by=?, updated_at=? WHERE id=?`)
     .run(newVal, newVal ? nowISO() : null, req.session.userName, nowISO(), req.params.id);
@@ -305,12 +306,21 @@ router.post('/:id/attachments',
     if (!req.file) {
       return res.redirect(`/customers/${req.params.id}?error=${encodeURIComponent('اختر ملف أولاً')}`);
     }
-    const label = (req.body.label || '').trim() || 'مستند';
-    db.prepare(`INSERT INTO attachments (customer_id, label, original_name, stored_name, mime_type, size, uploaded_by, created_at)
-      VALUES (?,?,?,?,?,?,?,?)`)
-      .run(req.params.id, label, req.file.originalname, req.file.filename, req.file.mimetype, req.file.size, req.session.userName, nowISO());
-    logActivity(req, 'رفع مرفق', { entityType: 'customer', entityId: req.params.id, details: label });
-    res.redirect('/customers/' + req.params.id);
+    // The file is already written to disk by multer at this point — any
+    // failure past here (bad DB state, full disk on the activity insert...)
+    // shouldn't surface as a raw crash, so it's wrapped and turned into the
+    // same friendly redirect used for upload-stage errors.
+    try {
+      const label = (req.body.label || '').trim() || 'مستند';
+      db.prepare(`INSERT INTO attachments (customer_id, label, original_name, stored_name, mime_type, size, uploaded_by, created_at)
+        VALUES (?,?,?,?,?,?,?,?)`)
+        .run(req.params.id, label, req.file.originalname, req.file.filename, req.file.mimetype, req.file.size, req.session.userName, nowISO());
+      logActivity(req, 'رفع مرفق', { entityType: 'customer', entityId: req.params.id, details: label });
+      res.redirect('/customers/' + req.params.id);
+    } catch (err) {
+      console.error('خطأ برفع مرفق:', err);
+      res.redirect(`/customers/${req.params.id}?error=${encodeURIComponent('صار خطأ أثناء حفظ المرفق، جرّب مرة ثانية')}`);
+    }
   });
 
 router.get('/:id/attachments/:attId/download', (req, res) => {
