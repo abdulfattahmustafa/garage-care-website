@@ -47,6 +47,67 @@
         </div>
       <% }) %>
     </div>
+
+    <div class="card">
+      <div class="section-title" style="font-size:16px"><span class="bar"></span> الحقول المخصصة</div>
+      <p class="muted">أضف حقول خاصة بمعرضك تظهر بفورم إضافة/تعديل العميل أو العميل المحتمل، غير الحقول الجاهزة بالنظام.</p>
+
+      <form method="POST" action="/settings/custom-fields" class="form-row" style="align-items:flex-end; margin-top:14px">
+        <div class="field" style="flex:1 1 200px">
+          <label>اسم الحقل</label>
+          <input type="text" name="label" placeholder="مثال: اسم الوكيل" required>
+        </div>
+        <div class="field" style="flex:0 0 160px">
+          <label>يظهر على</label>
+          <select name="entity_type">
+            <option value="customer">العملاء</option>
+            <option value="prospect">العملاء المحتملون</option>
+          </select>
+        </div>
+        <div class="field" style="flex:0 0 160px">
+          <label>نوع الحقل</label>
+          <select name="field_type">
+            <option value="text">نص</option>
+            <option value="number">رقم</option>
+            <option value="date">تاريخ</option>
+            <option value="select">قائمة اختيار</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1 1 220px">
+          <label>خيارات القائمة (لو النوع "قائمة اختيار"، افصل بفاصلة)</label>
+          <input type="text" name="options" placeholder="خيار1، خيار2، خيار3">
+        </div>
+        <div class="field" style="flex:0 0 auto; display:flex; align-items:center; gap:6px; padding-bottom:10px">
+          <input type="checkbox" name="required" value="1" id="cfRequired" style="width:auto">
+          <label for="cfRequired" style="margin:0">إلزامي</label>
+        </div>
+        <div class="field" style="flex:0 0 auto">
+          <button type="submit" class="btn btn-primary">+ إضافة</button>
+        </div>
+      </form>
+
+      <div class="divider"></div>
+
+      <% if (!customFields.length) { %>
+        <p class="muted">لا يوجد حقول مخصصة بعد.</p>
+      <% } %>
+      <% const CF_TYPE_LABELS = { text: 'نص', number: 'رقم', date: 'تاريخ', select: 'قائمة اختيار' }; %>
+      <% customFields.forEach(f => { %>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border)">
+          <span>
+            <strong><%= f.label %></strong>
+            <span class="muted" style="font-size:12px">
+              — <%= f.entity_type === 'customer' ? 'العملاء' : 'العملاء المحتملون' %>
+              · <%= CF_TYPE_LABELS[f.field_type] %>
+              <% if (f.required) { %> · إلزامي<% } %>
+            </span>
+          </span>
+          <form method="POST" action="/settings/custom-fields/<%= f.id %>/delete" onsubmit="return confirm('حذف حقل «<%= f.label %>»؟ (البيانات القديمة المدخلة فيه تبقى محفوظة بس ما تظهر بعد الحذف)');">
+            <button type="submit" class="btn btn-danger btn-sm">حذف</button>
+          </form>
+        </div>
+      <% }) %>
+    </div>
   </main>
 </body>
 </html>

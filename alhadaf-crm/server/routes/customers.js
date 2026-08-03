@@ -5,6 +5,7 @@ const router = express.Router();
 const { validateNationalId, validatePhone, isReportOverdue } = require('../lib/util');
 const { logActivity } = require('../lib/activity');
 const { uploadSingle, getUploadsDir } = require('../lib/upload');
+const { getCustomFields, parseCustomData, valuesFromBody, validateAndBuild } = require('../lib/customFields');
 
 const PAYMENT_METHODS = ['نقدي', 'تمويل', 'شركات', 'جهات حكومية'];
 const STATUSES = ['جديد', 'تم التسليم', 'تمت المتابعة', 'عميل متكرر'];
@@ -114,7 +115,8 @@ router.get('/new', (req, res) => {
   if (req.query.type === 'dealer') {
     prefill = { ...(prefill || {}), customer_type: 'معارض' };
   }
-  res.render('customers/form', { customer: prefill, errors: {}, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), added: req.query.added === '1' });
+  const customFields = getCustomFields(db, 'customer');
+  res.render('customers/form', { customer: prefill, errors: {}, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), added: req.query.added === '1', customFields, customValues: {} });
 });
 
 // "رخصة واستمارة" is a normal retail sale to an individual; "معارض" is a
@@ -151,6 +153,9 @@ router.post('/', (req, res) => {
   const db = req.db;
   const body = req.body;
   const errors = validateBody(body);
+  const customFields = getCustomFields(db, 'customer');
+  const { data: customData, errors: customErrors } = validateAndBuild(customFields, body);
+  Object.assign(errors, customErrors);
 
   if (!errors.vin) {
     const dupVin = db.prepare('SELECT id FROM customers WHERE vin = ?').get(body.vin.toUpperCase());
@@ -162,13 +167,13 @@ router.post('/', (req, res) => {
   }
 
   if (Object.keys(errors).length) {
-    return res.status(400).render('customers/form', { customer: body, errors, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
+    return res.status(400).render('customers/form', { customer: body, errors, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), customFields, customValues: valuesFromBody(customFields, body) });
   }
 
   const ts = nowISO();
   const stmt = db.prepare(`INSERT INTO customers
-    (customer_type, customer_name, national_id, sale_date, payment_method, bank_name, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, followup_done, created_by, updated_by, is_demo, created_at, updated_at)
-    VALUES (@customer_type, @customer_name, @national_id, @sale_date, @payment_method, @bank_name, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, 0, 0, @created_by, @updated_by, 0, @created_at, @updated_at)`);
+    (customer_type, customer_name, national_id, sale_date, payment_method, bank_name, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, followup_done, custom_data, created_by, updated_by, is_demo, created_at, updated_at)
+    VALUES (@customer_type, @customer_name, @national_id, @sale_date, @payment_method, @bank_name, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, 0, 0, @custom_data, @created_by, @updated_by, 0, @created_at, @updated_at)`);
 
   const info = stmt.run({
     customer_type: CUSTOMER_TYPES.includes(body.customer_type) ? body.customer_type : CUSTOMER_TYPES[0],
@@ -187,6 +192,7 @@ router.post('/', (req, res) => {
     price: body.price ? parseFloat(body.price) : null,
     notes: body.notes || null,
     status: STATUSES.includes(body.status) ? body.status : 'جديد',
+    custom_data: Object.keys(customData).length ? JSON.stringify(customData) : null,
     created_by: req.session.userName, updated_by: req.session.userName,
     created_at: ts, updated_at: ts,
   });
@@ -207,14 +213,18 @@ router.get('/:id', (req, res) => {
   const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   if (!customer) return res.status(404).render('404');
   const attachments = db.prepare('SELECT * FROM attachments WHERE customer_id = ? ORDER BY created_at DESC').all(customer.id);
-  res.render('customers/detail', { customer, attachments, isReportOverdue, uploadError: req.query.error || null });
+  const customFields = getCustomFields(db, 'customer');
+  const customValues = parseCustomData(customer.custom_data);
+  res.render('customers/detail', { customer, attachments, isReportOverdue, uploadError: req.query.error || null, customFields, customValues });
 });
 
 router.get('/:id/edit', (req, res) => {
   const db = req.db;
   const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   if (!customer) return res.status(404).render('404');
-  res.render('customers/form', { customer, errors: {}, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
+  const customFields = getCustomFields(db, 'customer');
+  const customValues = parseCustomData(customer.custom_data);
+  res.render('customers/form', { customer, errors: {}, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), customFields, customValues });
 });
 
 router.post('/:id', (req, res) => {
@@ -224,6 +234,9 @@ router.post('/:id', (req, res) => {
 
   const body = req.body;
   const errors = validateBody(body);
+  const customFields = getCustomFields(db, 'customer');
+  const { data: customData, errors: customErrors } = validateAndBuild(customFields, body);
+  Object.assign(errors, customErrors);
 
   if (!errors.vin) {
     const dupVin = db.prepare('SELECT id FROM customers WHERE vin = ? AND id != ?').get(body.vin.toUpperCase(), req.params.id);
@@ -235,13 +248,13 @@ router.post('/:id', (req, res) => {
   }
 
   if (Object.keys(errors).length) {
-    return res.status(400).render('customers/form', { customer: { ...body, id: req.params.id }, errors, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db) });
+    return res.status(400).render('customers/form', { customer: { ...body, id: req.params.id }, errors, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), customFields, customValues: valuesFromBody(customFields, body) });
   }
 
   db.prepare(`UPDATE customers SET
     customer_type=@customer_type, customer_name=@customer_name, national_id=@national_id, sale_date=@sale_date, payment_method=@payment_method, bank_name=@bank_name,
     delivery_at=@delivery_at, car_type=@car_type, car_inventory_id=@car_inventory_id, vin=@vin, estimara_number=@estimara_number, phone=@phone,
-    salesperson=@salesperson, price=@price, notes=@notes, status=@status, updated_by=@updated_by, updated_at=@updated_at
+    salesperson=@salesperson, price=@price, notes=@notes, status=@status, custom_data=@custom_data, updated_by=@updated_by, updated_at=@updated_at
     WHERE id=@id`).run({
     customer_type: CUSTOMER_TYPES.includes(body.customer_type) ? body.customer_type : CUSTOMER_TYPES[0],
     customer_name: body.customer_name.trim(),
@@ -259,6 +272,7 @@ router.post('/:id', (req, res) => {
     price: body.price ? parseFloat(body.price) : null,
     notes: body.notes || null,
     status: STATUSES.includes(body.status) ? body.status : existing.status,
+    custom_data: Object.keys(customData).length ? JSON.stringify(customData) : null,
     updated_by: req.session.userName,
     updated_at: nowISO(),
     id: req.params.id,

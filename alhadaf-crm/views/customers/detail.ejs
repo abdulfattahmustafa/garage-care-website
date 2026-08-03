@@ -44,6 +44,9 @@
           <% } %>
           <div><div class="k">البائع المسؤول</div><div class="v"><%= customer.salesperson || '—' %></div></div>
           <div><div class="k">الحالة</div><div class="v"><span class="badge badge-gray"><%= customer.status %></span></div></div>
+          <% if (typeof customFields !== 'undefined') { customFields.forEach(f => { %>
+            <div><div class="k"><%= f.label %></div><div class="v"><%= customValues[f.id] || '—' %></div></div>
+          <% }) } %>
         </div>
         <% if (customer.notes) { %>
           <div class="divider"></div>

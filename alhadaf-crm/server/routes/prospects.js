@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { logActivity } = require('../lib/activity');
 const { validatePhone } = require('../lib/util');
+const { getCustomFields, parseCustomData, valuesFromBody, validateAndBuild } = require('../lib/customFields');
 
 const STAGES = ['جديد', 'تواصل أولي', 'زار المعرض', 'تجربة قيادة', 'تفاوض على السعر', 'لم يتم البيع', 'تحوّل لعميل'];
 const TERMINAL_STAGES = ['لم يتم البيع', 'تحوّل لعميل'];
@@ -83,7 +84,8 @@ router.get('/', (req, res) => {
 });
 
 router.get('/new', (req, res) => {
-  res.render('prospects/form', { prospect: null, errors: {}, STAGES, SOURCES, salespeople: getSalespeople(req.db), added: req.query.added === '1' });
+  const customFields = getCustomFields(req.db, 'prospect');
+  res.render('prospects/form', { prospect: null, errors: {}, STAGES, SOURCES, salespeople: getSalespeople(req.db), added: req.query.added === '1', customFields, customValues: {} });
 });
 
 function validateBody(body) {
@@ -97,8 +99,11 @@ router.post('/', (req, res) => {
   const db = req.db;
   const body = req.body;
   const errors = validateBody(body);
+  const customFields = getCustomFields(db, 'prospect');
+  const { data: customData, errors: customErrors } = validateAndBuild(customFields, body);
+  Object.assign(errors, customErrors);
   if (Object.keys(errors).length) {
-    return res.status(400).render('prospects/form', { prospect: body, errors, STAGES, SOURCES, salespeople: getSalespeople(db) });
+    return res.status(400).render('prospects/form', { prospect: body, errors, STAGES, SOURCES, salespeople: getSalespeople(db), customFields, customValues: valuesFromBody(customFields, body) });
   }
 
   let salesperson = body.salesperson ? body.salesperson.trim() : '';
@@ -113,8 +118,8 @@ router.post('/', (req, res) => {
 
   const ts = nowISO();
   const info = db.prepare(`INSERT INTO prospects
-    (name, phone, source, interested_car, stage, salesperson, notes, is_demo, created_by, created_at, updated_at)
-    VALUES (@name, @phone, @source, @interested_car, @stage, @salesperson, @notes, 0, @created_by, @created_at, @updated_at)`)
+    (name, phone, source, interested_car, stage, salesperson, notes, custom_data, is_demo, created_by, created_at, updated_at)
+    VALUES (@name, @phone, @source, @interested_car, @stage, @salesperson, @notes, @custom_data, 0, @created_by, @created_at, @updated_at)`)
     .run({
       name: body.name.trim(),
       phone: body.phone ? body.phone.trim() : null,
@@ -123,6 +128,7 @@ router.post('/', (req, res) => {
       stage: STAGES.includes(body.stage) ? body.stage : 'جديد',
       salesperson: salesperson || null,
       notes: body.notes || null,
+      custom_data: Object.keys(customData).length ? JSON.stringify(customData) : null,
       created_by: req.session.userName,
       created_at: ts, updated_at: ts,
     });
@@ -137,14 +143,18 @@ router.get('/:id', (req, res) => {
   const prospect = db.prepare('SELECT * FROM prospects WHERE id = ?').get(req.params.id);
   if (!prospect) return res.status(404).render('404');
   const logs = db.prepare('SELECT * FROM prospect_log WHERE prospect_id = ? ORDER BY contact_date DESC, id DESC').all(prospect.id);
-  res.render('prospects/detail', { prospect, logs, STAGES });
+  const customFields = getCustomFields(db, 'prospect');
+  const customValues = parseCustomData(prospect.custom_data);
+  res.render('prospects/detail', { prospect, logs, STAGES, customFields, customValues });
 });
 
 router.get('/:id/edit', (req, res) => {
   const db = req.db;
   const prospect = db.prepare('SELECT * FROM prospects WHERE id = ?').get(req.params.id);
   if (!prospect) return res.status(404).render('404');
-  res.render('prospects/form', { prospect, errors: {}, STAGES, SOURCES, salespeople: getSalespeople(db) });
+  const customFields = getCustomFields(db, 'prospect');
+  const customValues = parseCustomData(prospect.custom_data);
+  res.render('prospects/form', { prospect, errors: {}, STAGES, SOURCES, salespeople: getSalespeople(db), customFields, customValues });
 });
 
 router.post('/:id', (req, res) => {
@@ -154,13 +164,16 @@ router.post('/:id', (req, res) => {
 
   const body = req.body;
   const errors = validateBody(body);
+  const customFields = getCustomFields(db, 'prospect');
+  const { data: customData, errors: customErrors } = validateAndBuild(customFields, body);
+  Object.assign(errors, customErrors);
   if (Object.keys(errors).length) {
-    return res.status(400).render('prospects/form', { prospect: { ...body, id: req.params.id }, errors, STAGES, SOURCES, salespeople: getSalespeople(db) });
+    return res.status(400).render('prospects/form', { prospect: { ...body, id: req.params.id }, errors, STAGES, SOURCES, salespeople: getSalespeople(db), customFields, customValues: valuesFromBody(customFields, body) });
   }
 
   db.prepare(`UPDATE prospects SET
     name=@name, phone=@phone, source=@source, interested_car=@interested_car, stage=@stage,
-    salesperson=@salesperson, notes=@notes, updated_at=@updated_at WHERE id=@id`)
+    salesperson=@salesperson, notes=@notes, custom_data=@custom_data, updated_at=@updated_at WHERE id=@id`)
     .run({
       name: body.name.trim(),
       phone: body.phone ? body.phone.trim() : null,
@@ -169,6 +182,7 @@ router.post('/:id', (req, res) => {
       stage: STAGES.includes(body.stage) ? body.stage : existing.stage,
       salesperson: body.salesperson ? body.salesperson.trim() : null,
       notes: body.notes || null,
+      custom_data: Object.keys(customData).length ? JSON.stringify(customData) : null,
       updated_at: nowISO(),
       id: req.params.id,
     });

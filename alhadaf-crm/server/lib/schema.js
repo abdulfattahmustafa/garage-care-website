@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS customers (
   followup_at TEXT,
   created_by TEXT,
   updated_by TEXT,
+  custom_data TEXT,
   is_demo INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -111,6 +112,7 @@ CREATE TABLE IF NOT EXISTS prospects (
   salesperson TEXT,
   notes TEXT,
   converted_customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+  custom_data TEXT,
   is_demo INTEGER NOT NULL DEFAULT 0,
   created_by TEXT,
   created_at TEXT NOT NULL,
@@ -135,6 +137,16 @@ CREATE TABLE IF NOT EXISTS attachments (
   mime_type TEXT NOT NULL,
   size INTEGER NOT NULL,
   uploaded_by TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS custom_fields (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  entity_type TEXT NOT NULL,
+  label TEXT NOT NULL,
+  field_type TEXT NOT NULL,
+  options TEXT,
+  required INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
 );
 
@@ -163,6 +175,9 @@ CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
   }
   if (!customerCols.includes('bank_name')) {
     db.exec('ALTER TABLE customers ADD COLUMN bank_name TEXT');
+  }
+  if (!customerCols.includes('custom_data')) {
+    db.exec('ALTER TABLE customers ADD COLUMN custom_data TEXT');
   }
 
   // Migration for customers tables created before "معارض" (dealer) sales
@@ -207,18 +222,20 @@ CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
       followup_at TEXT,
       created_by TEXT,
       updated_by TEXT,
+      custom_data TEXT,
       is_demo INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`);
-    // NOTE: bank_name is deliberately left out of this copy — at the point
-    // this rebuild runs, customers_old may or may not have that column yet
-    // depending on migration order, so it's populated by the bank_name
-    // ALTER TABLE migration above/below instead of here (that ALTER runs
-    // unconditionally against whatever "customers" currently is).
+    // NOTE: bank_name/custom_data are deliberately left out of this copy —
+    // at the point this rebuild runs, customers_old may or may not have
+    // those columns yet depending on migration order, so they're populated
+    // by their own ALTER TABLE migrations above instead of here (those
+    // ALTERs run unconditionally against whatever "customers" currently is).
     const oldCols = db.prepare("PRAGMA table_info(customers_old)").all().map(c => c.name);
     const copyCols = ['id', 'customer_type', 'customer_name', 'national_id', 'sale_date', 'payment_method', 'delivery_at', 'car_type', 'car_inventory_id', 'vin', 'estimara_number', 'phone', 'salesperson', 'price', 'notes', 'status', 'reported', 'reported_at', 'followup_done', 'followup_result', 'followup_note', 'followup_at', 'created_by', 'updated_by', 'is_demo', 'created_at', 'updated_at'];
     if (oldCols.includes('bank_name')) copyCols.splice(6, 0, 'bank_name');
+    if (oldCols.includes('custom_data')) copyCols.splice(copyCols.indexOf('updated_by') + 1, 0, 'custom_data');
     const colList = copyCols.join(', ');
     db.exec(`INSERT INTO customers (${colList}) SELECT ${colList} FROM customers_old`);
     db.exec('DROP TABLE customers_old');
@@ -254,6 +271,12 @@ CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
       SELECT id, brand, model, year, '', color, purchase_price, is_demo, created_at FROM car_inventory_old`);
     db.exec('DROP TABLE car_inventory_old');
     db.exec('PRAGMA foreign_keys = ON');
+  }
+
+  // Migration for tenant databases created before custom fields existed.
+  const prospectCols = db.prepare("PRAGMA table_info(prospects)").all().map(c => c.name);
+  if (!prospectCols.includes('custom_data')) {
+    db.exec('ALTER TABLE prospects ADD COLUMN custom_data TEXT');
   }
 
   // Migration for tenants created before roles existed: default to 'manager'

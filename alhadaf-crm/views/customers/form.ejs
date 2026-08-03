@@ -156,6 +156,31 @@
         <textarea name="notes"><%= customer ? customer.notes || '' : '' %></textarea>
       </div>
 
+      <% if (typeof customFields !== 'undefined' && customFields.length) { %>
+        <div class="divider"></div>
+        <% customFields.forEach(f => { %>
+          <% const val = (typeof customValues !== 'undefined' && customValues[f.id]) || ''; %>
+          <div class="field">
+            <label><%= f.label %><% if (f.required) { %> *<% } %></label>
+            <% if (f.field_type === 'select') { %>
+              <select name="custom_<%= f.id %>" class="<%= errors['custom_'+f.id] ? 'invalid' : '' %>">
+                <option value="">اختر...</option>
+                <% (f.options||'').split(',').map(o=>o.trim()).filter(Boolean).forEach(opt => { %>
+                  <option value="<%= opt %>" <%= val === opt ? 'selected' : '' %>><%= opt %></option>
+                <% }) %>
+              </select>
+            <% } else if (f.field_type === 'date') { %>
+              <input type="date" name="custom_<%= f.id %>" value="<%= val %>" class="<%= errors['custom_'+f.id] ? 'invalid' : '' %>">
+            <% } else if (f.field_type === 'number') { %>
+              <input type="number" step="any" name="custom_<%= f.id %>" value="<%= val %>" class="<%= errors['custom_'+f.id] ? 'invalid' : '' %>">
+            <% } else { %>
+              <input type="text" name="custom_<%= f.id %>" value="<%= val %>" class="<%= errors['custom_'+f.id] ? 'invalid' : '' %>">
+            <% } %>
+            <% if (errors['custom_'+f.id]) { %><div class="err"><%= errors['custom_'+f.id] %></div><% } %>
+          </div>
+        <% }) %>
+      <% } %>
+
       <div class="actions-row">
         <button type="submit" class="btn btn-primary"><%= customer && customer.id ? 'حفظ التعديلات' : 'حفظ العميل' %></button>
         <% if (customer && customer.id) { %>

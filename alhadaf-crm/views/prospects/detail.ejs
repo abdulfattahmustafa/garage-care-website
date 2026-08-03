@@ -31,6 +31,9 @@
         <div><div class="k">كيف عرف بالمعرض</div><div class="v"><%= prospect.source || '—' %></div></div>
         <div><div class="k">البائع المسؤول</div><div class="v"><%= prospect.salesperson || '—' %></div></div>
         <div><div class="k">آخر تحديث</div><div class="v"><%= prospect.updated_at.slice(0,10) %></div></div>
+        <% if (typeof customFields !== 'undefined') { customFields.forEach(f => { %>
+          <div><div class="k"><%= f.label %></div><div class="v"><%= customValues[f.id] || '—' %></div></div>
+        <% }) } %>
       </div>
       <% if (prospect.notes) { %>
         <div class="divider"></div>

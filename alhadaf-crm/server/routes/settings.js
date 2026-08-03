@@ -2,11 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { logActivity } = require('../lib/activity');
 
+const CUSTOM_FIELD_TYPES = ['text', 'number', 'date', 'select'];
+
 router.get('/', (req, res) => {
   const db = req.db;
   const salespeople = db.prepare('SELECT * FROM salespeople ORDER BY name').all();
   const appSettings = db.prepare('SELECT * FROM app_settings WHERE id = 1').get();
-  res.render('settings', { salespeople, appSettings, error: req.query.error || null });
+  const customFields = db.prepare('SELECT * FROM custom_fields ORDER BY entity_type, id').all();
+  res.render('settings', { salespeople, appSettings, customFields, error: req.query.error || null });
 });
 
 router.post('/auto-assign', (req, res) => {
@@ -38,6 +41,35 @@ router.post('/salespeople/:id/delete', (req, res) => {
   const sp = db.prepare('SELECT * FROM salespeople WHERE id = ?').get(req.params.id);
   db.prepare('DELETE FROM salespeople WHERE id = ?').run(req.params.id);
   if (sp) logActivity(req, 'حذف بائع', { entityType: 'salesperson', entityId: req.params.id, details: sp.name });
+  res.redirect('/settings');
+});
+
+router.post('/custom-fields', (req, res) => {
+  const db = req.db;
+  const label = (req.body.label || '').trim();
+  const entityType = ['customer', 'prospect'].includes(req.body.entity_type) ? req.body.entity_type : null;
+  const fieldType = CUSTOM_FIELD_TYPES.includes(req.body.field_type) ? req.body.field_type : null;
+  const required = req.body.required === '1' ? 1 : 0;
+  const options = (req.body.options || '').trim();
+
+  if (!label || !entityType || !fieldType) {
+    return res.redirect('/settings?error=' + encodeURIComponent('عبّي كل الحقول المطلوبة'));
+  }
+  if (fieldType === 'select' && !options) {
+    return res.redirect('/settings?error=' + encodeURIComponent('اكتب خيارات القائمة مفصولة بفاصلة'));
+  }
+
+  const info = db.prepare('INSERT INTO custom_fields (entity_type, label, field_type, options, required, created_at) VALUES (?,?,?,?,?,?)')
+    .run(entityType, label, fieldType, fieldType === 'select' ? options : null, required, new Date().toISOString());
+  logActivity(req, 'إضافة حقل مخصص', { entityType: 'custom_field', entityId: info.lastInsertRowid, details: label });
+  res.redirect('/settings');
+});
+
+router.post('/custom-fields/:id/delete', (req, res) => {
+  const db = req.db;
+  const f = db.prepare('SELECT * FROM custom_fields WHERE id = ?').get(req.params.id);
+  db.prepare('DELETE FROM custom_fields WHERE id = ?').run(req.params.id);
+  if (f) logActivity(req, 'حذف حقل مخصص', { entityType: 'custom_field', entityId: req.params.id, details: f.label });
   res.redirect('/settings');
 });
 
