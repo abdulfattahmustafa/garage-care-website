@@ -75,13 +75,18 @@
       <div class="divider"></div>
       <% } %>
 
-      <% if (!logs.length) { %>
-        <p class="muted">لا يوجد سجل تواصل بعد.</p>
+      <% if (!timeline.length) { %>
+        <p class="muted">لا يوجد سجل تواصل أو نشاط بعد.</p>
       <% } %>
-      <% logs.forEach(l => { %>
+      <% timeline.forEach(item => { %>
         <div class="log-item">
-          <div class="date"><%= l.contact_date %> <span class="badge badge-gray"><%= l.type || 'تواصل' %></span></div>
-          <% if (l.note) { %><div class="note"><%= l.note %></div><% } %>
+          <% if (item.kind === 'manual') { %>
+            <div class="date"><%= item.displayDate %> <span class="badge badge-gray"><%= item.type || 'تواصل' %></span></div>
+            <% if (item.note) { %><div class="note"><%= item.note %></div><% } %>
+          <% } else { %>
+            <div class="date"><%= item.displayDate %> <span class="badge badge-amber"><%= item.action %></span> <span class="muted" style="font-size:12px">— <%= item.user_name || '—' %></span></div>
+            <% if (item.details) { %><div class="note"><%= item.details %></div><% } %>
+          <% } %>
         </div>
       <% }) %>
     </div>

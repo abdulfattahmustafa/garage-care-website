@@ -3,6 +3,7 @@ const router = express.Router();
 const { logActivity } = require('../lib/activity');
 const { validatePhone } = require('../lib/util');
 const { getCustomFields, parseCustomData, valuesFromBody, validateAndBuild } = require('../lib/customFields');
+const { getUnifiedTimeline } = require('../lib/timeline');
 
 const STAGES = ['جديد', 'تواصل أولي', 'زار المعرض', 'تجربة قيادة', 'تفاوض على السعر', 'لم يتم البيع', 'تحوّل لعميل'];
 const TERMINAL_STAGES = ['لم يتم البيع', 'تحوّل لعميل'];
@@ -142,10 +143,10 @@ router.get('/:id', (req, res) => {
   const db = req.db;
   const prospect = db.prepare('SELECT * FROM prospects WHERE id = ?').get(req.params.id);
   if (!prospect) return res.status(404).render('404');
-  const logs = db.prepare('SELECT * FROM prospect_log WHERE prospect_id = ? ORDER BY contact_date DESC, id DESC').all(prospect.id);
   const customFields = getCustomFields(db, 'prospect');
   const customValues = parseCustomData(prospect.custom_data);
-  res.render('prospects/detail', { prospect, logs, STAGES, customFields, customValues });
+  const timeline = getUnifiedTimeline(db, { entityType: 'prospect', entityId: prospect.id, logTable: 'prospect_log', logIdCol: 'prospect_id' });
+  res.render('prospects/detail', { prospect, STAGES, customFields, customValues, timeline });
 });
 
 router.get('/:id/edit', (req, res) => {

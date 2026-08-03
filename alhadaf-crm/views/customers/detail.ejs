@@ -158,6 +158,51 @@
       <% }) %>
     </div>
 
+    <div class="card" style="margin-top:20px">
+      <div class="section-title" style="font-size:16px"><span class="bar"></span> سجل التواصل</div>
+
+      <% if (userRole === 'manager') { %>
+      <form method="POST" action="/customers/<%= customer.id %>/contact" class="form-row" style="align-items:flex-end">
+        <div class="field" style="flex:0 0 160px">
+          <label>التاريخ</label>
+          <input type="date" name="contact_date" value="<%= new Date().toISOString().slice(0,10) %>" required>
+        </div>
+        <div class="field" style="flex:0 0 160px">
+          <label>نوع التواصل</label>
+          <select name="type">
+            <option value="مكالمة">مكالمة</option>
+            <option value="زيارة">زيارة</option>
+            <option value="رسالة">رسالة</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1 1 260px">
+          <label>الملاحظة</label>
+          <input type="text" name="note" placeholder="تفاصيل التواصل...">
+        </div>
+        <div class="field" style="flex:0 0 auto">
+          <button type="submit" class="btn btn-primary">إضافة</button>
+        </div>
+      </form>
+
+      <div class="divider"></div>
+      <% } %>
+
+      <% if (!timeline.length) { %>
+        <p class="muted">لا يوجد سجل تواصل أو نشاط بعد.</p>
+      <% } %>
+      <% timeline.forEach(item => { %>
+        <div class="log-item">
+          <% if (item.kind === 'manual') { %>
+            <div class="date"><%= item.displayDate %> <span class="badge badge-gray"><%= item.type || 'تواصل' %></span></div>
+            <% if (item.note) { %><div class="note"><%= item.note %></div><% } %>
+          <% } else { %>
+            <div class="date"><%= item.displayDate %> <span class="badge badge-amber"><%= item.action %></span> <span class="muted" style="font-size:12px">— <%= item.user_name || '—' %></span></div>
+            <% if (item.details) { %><div class="note"><%= item.details %></div><% } %>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+
   </main>
 </body>
 </html>

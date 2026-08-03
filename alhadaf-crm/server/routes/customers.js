@@ -6,6 +6,7 @@ const { validateNationalId, validatePhone, isReportOverdue } = require('../lib/u
 const { logActivity } = require('../lib/activity');
 const { uploadSingle, getUploadsDir } = require('../lib/upload');
 const { getCustomFields, parseCustomData, valuesFromBody, validateAndBuild } = require('../lib/customFields');
+const { getUnifiedTimeline } = require('../lib/timeline');
 
 const PAYMENT_METHODS = ['نقدي', 'تمويل', 'شركات', 'جهات حكومية'];
 const STATUSES = ['جديد', 'تم التسليم', 'تمت المتابعة', 'عميل متكرر'];
@@ -25,6 +26,7 @@ const EMPLOYEE_BLOCKED_ROUTES = [
   { method: 'POST', pattern: /^\/\d+\/report$/ },
   { method: 'POST', pattern: /^\/\d+\/attachments$/ },
   { method: 'POST', pattern: /^\/\d+\/attachments\/\d+\/delete$/ },
+  { method: 'POST', pattern: /^\/\d+\/contact$/ },
 ];
 router.use((req, res, next) => {
   if (req.session.userRole === 'manager') return next();
@@ -215,7 +217,8 @@ router.get('/:id', (req, res) => {
   const attachments = db.prepare('SELECT * FROM attachments WHERE customer_id = ? ORDER BY created_at DESC').all(customer.id);
   const customFields = getCustomFields(db, 'customer');
   const customValues = parseCustomData(customer.custom_data);
-  res.render('customers/detail', { customer, attachments, isReportOverdue, uploadError: req.query.error || null, customFields, customValues });
+  const timeline = getUnifiedTimeline(db, { entityType: 'customer', entityId: customer.id, logTable: 'contact_log', logIdCol: 'customer_id' });
+  res.render('customers/detail', { customer, attachments, isReportOverdue, uploadError: req.query.error || null, customFields, customValues, timeline });
 });
 
 router.get('/:id/edit', (req, res) => {
@@ -291,6 +294,15 @@ router.post('/:id/delete', (req, res) => {
   files.forEach(f => fs.unlink(path.join(uploadsDir, f.stored_name), () => {}));
   if (customer) logActivity(req, 'حذف عميل', { entityType: 'customer', entityId: req.params.id, details: customer.customer_name });
   res.redirect('/customers');
+});
+
+router.post('/:id/contact', (req, res) => {
+  const db = req.db;
+  const { contact_date, type, note } = req.body;
+  db.prepare('INSERT INTO contact_log (customer_id, contact_date, type, note, created_at) VALUES (?,?,?,?,?)')
+    .run(req.params.id, contact_date || nowISO().slice(0, 10), type || null, note || null, nowISO());
+  logActivity(req, 'إضافة تواصل (عميل)', { entityType: 'customer', entityId: req.params.id, details: type || 'تواصل' });
+  res.redirect('/customers/' + req.params.id);
 });
 
 router.post('/:id/followup', (req, res) => {
