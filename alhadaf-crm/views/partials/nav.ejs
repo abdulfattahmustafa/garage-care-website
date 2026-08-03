@@ -19,6 +19,10 @@
       <% } %>
     </nav>
     <div style="display:flex; align-items:center; gap:10px">
+      <form class="nav-search" method="GET" action="/search">
+        <input type="text" name="q" placeholder="بحث شامل: اسم، جوال، هوية، هيكل..." value="<%= typeof searchQ !== 'undefined' && searchQ ? searchQ : '' %>">
+        <button type="submit" title="بحث">🔍</button>
+      </form>
       <% if (typeof currentUserName !== 'undefined' && currentUserName) { %>
         <span class="muted" style="font-size:13px; color:#cfc8bf">مرحبًا، <%= currentUserName %></span>
       <% } %>

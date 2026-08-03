@@ -267,6 +267,9 @@ app.use('/cars', requireManager, require('./routes/cars'));
 app.use('/users', requireManager, require('./routes/users'));
 app.use('/prospects', require('./routes/prospects'));
 app.use('/activity', requireManager, require('./routes/activity'));
+// Read-only lookup across customers/dealers/prospects — same access level
+// as those lists themselves, so no requireManager gate here either.
+app.use('/search', require('./routes/search'));
 
 app.use((req, res) => {
   res.status(404).render('404');

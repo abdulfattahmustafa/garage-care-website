@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><%- include('partials/head', { title: 'نتائج البحث' }) %></head>
+<body>
+  <%- include('partials/nav', { active: '', searchQ: q }) %>
+  <main class="page container">
+    <div class="section-title" style="margin-bottom:16px"><span class="bar"></span> نتائج البحث<% if (q) { %> عن "<%= q %>"<% } %></div>
+
+    <% if (!q) { %>
+      <div class="empty-state">اكتب كلمة أو رقم بمربع البحث فوق للبدء.</div>
+    <% } else if (!customers.length && !dealers.length && !prospects.length) { %>
+      <div class="empty-state">ما فيه نتائج مطابقة لبحثك.</div>
+    <% } else { %>
+
+      <% if (customers.length) { %>
+      <div class="section-title" style="font-size:16px; margin:0 0 10px"><span class="bar"></span> عملاء (<%= customers.length %>)</div>
+      <div class="table-wrap card" style="padding:0; margin-bottom:24px">
+        <table>
+          <thead><tr><th>الاسم</th><th>رقم الهوية</th><th>الجوال</th><th>السيارة</th><th>تاريخ البيع</th></tr></thead>
+          <tbody>
+            <% customers.forEach(c => { %>
+              <tr onclick="location.href='/customers/<%= c.id %>'" style="cursor:pointer">
+                <td><%= c.customer_name %></td>
+                <td><%= c.national_id %></td>
+                <td><%= c.phone || '—' %></td>
+                <td><%= c.car_type %></td>
+                <td><%= c.sale_date %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% } %>
+
+      <% if (dealers.length) { %>
+      <div class="section-title" style="font-size:16px; margin:0 0 10px"><span class="bar"></span> معارض (<%= dealers.length %>)</div>
+      <div class="table-wrap card" style="padding:0; margin-bottom:24px">
+        <table>
+          <thead><tr><th>اسم المعرض</th><th>رقم ال700</th><th>الجوال</th><th>السيارة</th><th>تاريخ البيع</th></tr></thead>
+          <tbody>
+            <% dealers.forEach(c => { %>
+              <tr onclick="location.href='/customers/<%= c.id %>'" style="cursor:pointer">
+                <td><%= c.customer_name %></td>
+                <td><%= c.national_id %></td>
+                <td><%= c.phone || '—' %></td>
+                <td><%= c.car_type %></td>
+                <td><%= c.sale_date %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% } %>
+
+      <% if (prospects.length) { %>
+      <div class="section-title" style="font-size:16px; margin:0 0 10px"><span class="bar"></span> عملاء محتملون (<%= prospects.length %>)</div>
+      <div class="table-wrap card" style="padding:0">
+        <table>
+          <thead><tr><th>الاسم</th><th>الجوال</th><th>السيارة المهتم فيها</th><th>المرحلة</th></tr></thead>
+          <tbody>
+            <% prospects.forEach(p => { %>
+              <tr onclick="location.href='/prospects/<%= p.id %>'" style="cursor:pointer">
+                <td><%= p.name %></td>
+                <td><%= p.phone || '—' %></td>
+                <td><%= p.interested_car || '—' %></td>
+                <td><span class="badge <%= p.stage === 'تحوّل لعميل' ? 'badge-green' : (p.stage === 'لم يتم البيع' ? 'badge-red' : 'badge-gray') %>"><%= p.stage %></span></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% } %>
+
+    <% } %>
+  </main>
+</body>
+</html>
