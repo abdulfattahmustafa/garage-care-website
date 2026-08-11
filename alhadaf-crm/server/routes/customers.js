@@ -15,16 +15,17 @@ const BANKS = ['بنك الجزيرة', 'الإنماء', 'الراجحي', 'ا�
 const PAGE_SIZE = 20;
 
 // Employees can view everything under /customers (lists, dealer list,
-// detail pages, attachment downloads) and add new sales, and can edit a
-// customer they themselves added (ownership checked inside the GET
-// /:id/edit and POST /:id handlers, since it depends on that specific
-// customer's created_by — not something a blanket route-pattern block can
-// express). Everything else — deleting, followups, report toggling,
-// attachment upload/delete, and editing someone else's customer — is
-// blocked below.
+// detail pages, attachment downloads), add new sales, record post-sale
+// followup results (any employee, on any customer — not scoped to who
+// added it, since whoever actually makes the follow-up call should be
+// able to log it), and edit a customer they themselves added (ownership
+// checked inside the GET /:id/edit and POST /:id handlers, since it
+// depends on that specific customer's created_by — not something a
+// blanket route-pattern block can express). Everything else — deleting,
+// report toggling, attachment upload/delete, contact log, and editing
+// someone else's customer — is blocked below.
 const EMPLOYEE_BLOCKED_ROUTES = [
   { method: 'POST', pattern: /^\/\d+\/delete$/ },
-  { method: 'POST', pattern: /^\/\d+\/followup$/ },
   { method: 'POST', pattern: /^\/\d+\/report$/ },
   { method: 'POST', pattern: /^\/\d+\/attachments$/ },
   { method: 'POST', pattern: /^\/\d+\/attachments\/\d+\/delete$/ },

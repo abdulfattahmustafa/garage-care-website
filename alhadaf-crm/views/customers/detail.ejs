@@ -65,7 +65,7 @@
       </div>
 
       <div class="card">
-        <div class="section-title" style="font-size:16px"><span class="bar"></span> حالة المستحقات</div>
+        <div class="section-title" style="font-size:16px"><span class="bar"></span> حالة المهمات</div>
 
         <p><strong>تبليغ المبيعات:</strong>
           <% if (customer.reported) { %>
@@ -93,7 +93,7 @@
           <% } %>
         </p>
         <% if (customer.followup_note) { %><p class="muted" style="font-size:13px"><%= customer.followup_note %></p><% } %>
-        <% if (!customer.followup_done && userRole === 'manager') { %>
+        <% if (!customer.followup_done) { %>
         <form method="POST" action="/customers/<%= customer.id %>/followup">
           <div class="form-row">
             <div class="field">

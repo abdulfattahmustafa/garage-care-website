@@ -24,12 +24,12 @@
 
     <div class="card" style="margin-bottom:24px; border-<%= (dueFollowups.length+overdueReports.length) ? 'right' : 'right' %>: 4px solid var(--gold)">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px">
-        <div class="section-title" style="margin:0"><span class="bar"></span> مستحقات اليوم</div>
-        <button class="btn btn-wa btn-sm" onclick="sendWaSummary()">📲 إرسال ملخص المستحقات للفريق</button>
+        <div class="section-title" style="margin:0"><span class="bar"></span> مهمات اليوم</div>
+        <button class="btn btn-wa btn-sm" onclick="sendWaSummary()">📲 إرسال ملخص المهمات للفريق</button>
       </div>
 
       <% if (!dueFollowups.length && !overdueReports.length && !dueSoonReports.length) { %>
-        <p class="muted">لا يوجد مستحقات حالياً ✅</p>
+        <p class="muted">لا يوجد مهمات حالياً ✅</p>
       <% } %>
 
       <% if (dueFollowups.length) { %>

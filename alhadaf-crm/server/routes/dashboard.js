@@ -37,7 +37,7 @@ router.get('/', (req, res) => {
     return diffDays >= 0 && diffDays <= 7;
   });
 
-  let waLines = [`*تذكير مستحقات - ${req.session.tenantName || 'المعرض'}*`, ''];
+  let waLines = [`*تذكير مهمات - ${req.session.tenantName || 'المعرض'}*`, ''];
   if (dueFollowups.length) {
     waLines.push(`📞 متابعة ما بعد بيع متأخرة (${dueFollowups.length}):`);
     dueFollowups.slice(0, 15).forEach(c => waLines.push(`- ${c.customer_name} (${c.car_type}) - جوال: ${c.phone || '—'}`));
@@ -52,7 +52,7 @@ router.get('/', (req, res) => {
     waLines.push(`🟡 تبليغ مبيعات مستحق قريبًا (${dueSoonReports.length}):`);
     dueSoonReports.slice(0, 15).forEach(c => waLines.push(`- ${c.customer_name} - استمارة ${c.estimara_number} - الموعد ${fmtDate(reportDeadlineISO(c.sale_date))}`));
   }
-  if (waLines.length === 2) waLines.push('لا يوجد مستحقات حالياً ✅');
+  if (waLines.length === 2) waLines.push('لا يوجد مهمات حالياً ✅');
   const waMessage = waLines.join('\n');
 
   res.render('dashboard', {
