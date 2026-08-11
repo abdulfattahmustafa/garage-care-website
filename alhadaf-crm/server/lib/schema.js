@@ -273,6 +273,137 @@ CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
     db.exec('PRAGMA foreign_keys = ON');
   }
 
+  // Repairs a SQLite quirk left behind by the two rebuilds above: when a
+  // table is renamed (ALTER TABLE x RENAME TO x_old), SQLite automatically
+  // rewrites the FOREIGN KEY clause text of every *other* table that
+  // references it, so it keeps pointing at the renamed table — so once the
+  // rebuild finishes and drops "customers_old"/"car_inventory_old", any
+  // table whose FK text got rewritten to that temporary name is left
+  // referencing a table that no longer exists. Every INSERT/UPDATE that
+  // needs to check that constraint then fails with something like
+  // "no such table: main.customers_old" — this is exactly the bug behind
+  // the recurring "can't upload attachments" report: attachments.customer_id
+  // silently ended up referencing "customers_old" the first time an old
+  // tenant's database went through the estimara_number rebuild, and nothing
+  // ever fixed it back up afterward. A plain text patch to sqlite_master
+  // (PRAGMA writable_schema) was tested and doesn't take effect on an
+  // already-open connection without closing and reopening it, which doesn't
+  // fit how connections are cached per tenant here — so the fix is to
+  // rebuild the affected table again, which reliably updates SQLite's live
+  // schema on the same connection. Rebuilding "prospects" to fix its own
+  // stale reference re-triggers the identical bug one level down on
+  // "prospect_log" (which references prospects), so that's checked and
+  // repaired right after.
+  // Checks whether any FOREIGN KEY clause in this table's current CREATE
+  // statement points at a table that doesn't actually exist right now —
+  // rather than checking for one specific stale name, since fixing
+  // "customers" itself (below) renames it too and would otherwise silently
+  // re-corrupt attachments/contact_log/prospects with a *new* temporary
+  // name in the same pass.
+  function hasOrphanedReference(tableName) {
+    const row = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(tableName);
+    if (!row || !row.sql) return false;
+    const refs = [...row.sql.matchAll(/REFERENCES\s+"?([A-Za-z_][A-Za-z0-9_]*)"?\s*\(/gi)].map(m => m[1]);
+    if (!refs.length) return false;
+    const existing = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(r => r.name));
+    return refs.some(r => !existing.has(r));
+  }
+  function rebuildTable(tableName, createSql, indexSql) {
+    const cols = db.prepare(`PRAGMA table_info(${tableName})`).all().map(c => c.name).join(', ');
+    db.exec('PRAGMA foreign_keys = OFF');
+    db.exec(`ALTER TABLE ${tableName} RENAME TO ${tableName}_fkfix_old`);
+    db.exec(createSql);
+    db.exec(`INSERT INTO ${tableName} (${cols}) SELECT ${cols} FROM ${tableName}_fkfix_old`);
+    db.exec(`DROP TABLE ${tableName}_fkfix_old`);
+    if (indexSql) db.exec(indexSql);
+    db.exec('PRAGMA foreign_keys = ON');
+  }
+
+  if (hasOrphanedReference('customers')) {
+    rebuildTable('customers', `CREATE TABLE customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_type TEXT NOT NULL DEFAULT 'رخصة واستمارة',
+      customer_name TEXT NOT NULL,
+      national_id TEXT NOT NULL,
+      sale_date TEXT NOT NULL,
+      payment_method TEXT NOT NULL,
+      bank_name TEXT,
+      delivery_at TEXT,
+      car_type TEXT NOT NULL,
+      car_inventory_id INTEGER REFERENCES car_inventory(id) ON DELETE SET NULL,
+      vin TEXT NOT NULL UNIQUE,
+      estimara_number TEXT UNIQUE,
+      phone TEXT,
+      salesperson TEXT,
+      price REAL,
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT 'جديد',
+      reported INTEGER NOT NULL DEFAULT 0,
+      reported_at TEXT,
+      followup_done INTEGER NOT NULL DEFAULT 0,
+      followup_result TEXT,
+      followup_note TEXT,
+      followup_at TEXT,
+      created_by TEXT,
+      updated_by TEXT,
+      custom_data TEXT,
+      is_demo INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`, 'CREATE INDEX IF NOT EXISTS idx_customers_sale_date ON customers(sale_date)');
+  }
+  if (hasOrphanedReference('contact_log')) {
+    rebuildTable('contact_log', `CREATE TABLE contact_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      contact_date TEXT NOT NULL,
+      type TEXT,
+      note TEXT,
+      created_at TEXT NOT NULL
+    )`, 'CREATE INDEX IF NOT EXISTS idx_contact_log_customer ON contact_log(customer_id)');
+  }
+  if (hasOrphanedReference('attachments')) {
+    rebuildTable('attachments', `CREATE TABLE attachments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      label TEXT,
+      original_name TEXT NOT NULL,
+      stored_name TEXT NOT NULL UNIQUE,
+      mime_type TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      uploaded_by TEXT,
+      created_at TEXT NOT NULL
+    )`, 'CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id)');
+  }
+  if (hasOrphanedReference('prospects')) {
+    rebuildTable('prospects', `CREATE TABLE prospects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone TEXT,
+      source TEXT,
+      interested_car TEXT,
+      stage TEXT NOT NULL DEFAULT 'جديد',
+      salesperson TEXT,
+      notes TEXT,
+      converted_customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      custom_data TEXT,
+      is_demo INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`, null);
+  }
+  if (hasOrphanedReference('prospect_log')) {
+    rebuildTable('prospect_log', `CREATE TABLE prospect_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      prospect_id INTEGER NOT NULL REFERENCES prospects(id) ON DELETE CASCADE,
+      contact_date TEXT NOT NULL,
+      type TEXT,
+      note TEXT,
+      created_at TEXT NOT NULL
+    )`, 'CREATE INDEX IF NOT EXISTS idx_prospect_log_prospect ON prospect_log(prospect_id)');
+  }
+
   // Migration for tenant databases created before custom fields existed.
   const prospectCols = db.prepare("PRAGMA table_info(prospects)").all().map(c => c.name);
   if (!prospectCols.includes('custom_data')) {
