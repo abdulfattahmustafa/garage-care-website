@@ -17,8 +17,10 @@
         <% if (customer.phone) { %>
           <a class="btn btn-wa btn-sm" target="_blank" href="https://wa.me/966<%= customer.phone.replace(/^0/,'') %>?text=<%= waText %>">📲 واتساب</a>
         <% } %>
-        <% if (userRole === 'manager') { %>
+        <% if (userRole === 'manager' || customer.created_by === currentUserName) { %>
         <a class="btn btn-outline btn-sm" href="/customers/<%= customer.id %>/edit">✏️ تعديل</a>
+        <% } %>
+        <% if (userRole === 'manager') { %>
         <form method="POST" action="/customers/<%= customer.id %>/delete" onsubmit="return confirm('هل أنت متأكد من حذف بيانات هذا العميل نهائيًا؟');" style="display:inline">
           <button type="submit" class="btn btn-danger btn-sm">🗑️ حذف</button>
         </form>

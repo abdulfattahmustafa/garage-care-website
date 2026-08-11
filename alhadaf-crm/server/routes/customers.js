@@ -15,12 +15,14 @@ const BANKS = ['بنك الجزيرة', 'الإنماء', 'الراجحي', 'ا�
 const PAGE_SIZE = 20;
 
 // Employees can view everything under /customers (lists, dealer list,
-// detail pages, attachment downloads) and add new sales, but can't change
-// anything — editing, deleting, followups, report toggling and attachment
-// upload/delete are blocked below.
+// detail pages, attachment downloads) and add new sales, and can edit a
+// customer they themselves added (ownership checked inside the GET
+// /:id/edit and POST /:id handlers, since it depends on that specific
+// customer's created_by — not something a blanket route-pattern block can
+// express). Everything else — deleting, followups, report toggling,
+// attachment upload/delete, and editing someone else's customer — is
+// blocked below.
 const EMPLOYEE_BLOCKED_ROUTES = [
-  { method: 'GET', pattern: /^\/\d+\/edit$/ },
-  { method: 'POST', pattern: /^\/\d+$/ },
   { method: 'POST', pattern: /^\/\d+\/delete$/ },
   { method: 'POST', pattern: /^\/\d+\/followup$/ },
   { method: 'POST', pattern: /^\/\d+\/report$/ },
@@ -36,6 +38,12 @@ router.use((req, res, next) => {
 });
 
 function nowISO() { return new Date().toISOString(); }
+
+// Managers can edit any customer; employees can only edit ones they
+// themselves added (created_by is set to req.session.userName at creation).
+function canEditCustomer(req, customer) {
+  return req.session.userRole === 'manager' || customer.created_by === req.session.userName;
+}
 
 // Merges the managed list (Settings page) with any older free-text names
 // already used on existing customer records, so past records never
@@ -225,6 +233,7 @@ router.get('/:id/edit', (req, res) => {
   const db = req.db;
   const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   if (!customer) return res.status(404).render('404');
+  if (!canEditCustomer(req, customer)) return res.status(403).render('403');
   const customFields = getCustomFields(db, 'customer');
   const customValues = parseCustomData(customer.custom_data);
   res.render('customers/form', { customer, errors: {}, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), customFields, customValues });
@@ -234,6 +243,7 @@ router.post('/:id', (req, res) => {
   const db = req.db;
   const existing = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).render('404');
+  if (!canEditCustomer(req, existing)) return res.status(403).render('403');
 
   const body = req.body;
   const errors = validateBody(body);
