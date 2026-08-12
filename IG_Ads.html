@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Visuals.sa — إعلانات إنستقرام</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600;1,700&family=Frank+Ruhl+Libre:wght@400;700;900&family=Anton&family=Italiana&family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/* ─── TOKENS ─── */
+:root {
+  --bg: #0a0a0b;
+  --accent: #c4f547;
+  --dim: rgba(255,255,255,0.45);
+  --line: rgba(255,255,255,0.1);
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{
+  background:#111113;
+  font-family:'Space Grotesk',sans-serif;
+  color:#fff;
+}
+
+/* ─── STAGE ─── */
+.stage{
+  padding:80px 48px;
+  background:#0d0d0f;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size:48px 48px;
+  min-height:100vh;
+}
+.stage-title{
+  text-align:center;
+  margin-bottom:80px;
+}
+.stage-title h1{
+  font-size:48px; font-weight:700; letter-spacing:-.03em;
+  margin-bottom:8px;
+}
+.stage-title h1 em{ font-style:normal; color:var(--accent); }
+.stage-title p{
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px; color:var(--dim);
+  letter-spacing:.1em; text-transform:uppercase;
+}
+
+/* lang label */
+.lang-label{
+  max-width:1200px; margin:0 auto 32px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--dim);
+  display:flex; align-items:center; gap:16px;
+}
+.lang-label::before,.lang-label::after{
+  content:''; flex:1; height:1px; background:rgba(255,255,255,0.07);
+}
+.lang-label span{ color:var(--accent); }
+
+/* ─── POST GRID ─── */
+.posts-grid{
+  max-width:1200px; margin:0 auto;
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(340px,1fr));
+  gap:48px 36px;
+}
+.post-wrap{ display:flex; flex-direction:column; gap:10px; }
+.post-frame{
+  width:100%; aspect-ratio:1080/1350;
+  position:relative; overflow:hidden;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.07);
+  box-shadow:0 32px 72px rgba(0,0,0,.6);
+}
+.post-frame .post{
+  position:absolute; top:0; left:0;
+  width:1080px; height:1350px;
+  transform-origin:top left;
+}
+.post-label{
+  display:flex; justify-content:space-between;
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px; color:var(--dim);
+  letter-spacing:.08em; text-transform:uppercase;
+}
+.post-label b{ color:#fff; font-weight:500; }
+.dot-swatch{
+  display:inline-block; width:8px; height:8px;
+  border-radius:50%; margin-left:8px;
+  vertical-align:middle;
+}
+
+/* ─── POST BASE ─── */
+.post{
+  width:1080px; height:1350px;
+  background:var(--bg);
+  color:#fff;
+  position:relative; overflow:hidden;
+  font-family:'Space Grotesk',sans-serif;
+}
+
+/* top chrome bar */
+.p-chrome{
+  position:absolute; top:0; left:0; right:0;
+  padding:36px 52px 0;
+  display:flex; justify-content:space-between; align-items:center;
+  font-family:'JetBrains Mono',monospace;
+  font-size:16px; letter-spacing:.1em;
+  text-transform:uppercase; color:rgba(255,255,255,.35);
+  z-index:8;
+}
+.p-chrome .logo-mark{
+  font-size:17px; font-weight:600; letter-spacing:.08em;
+  color:#fff; opacity:.9;
+}
+.p-chrome .logo-mark em{
+  font-style:normal; color:var(--accent);
+}
+.p-chrome .tag{
+  font-size:13px; letter-spacing:.14em;
+  color:rgba(255,255,255,.3);
+}
+
+/* ─── HERO BAND (upper 55%) ─── */
+.p-hero{
+  position:absolute;
+  top:0; left:0; right:0;
+  height:740px;
+  background:var(--brand-bg);
+  color:var(--brand-ink);
+  display:flex; flex-direction:column;
+  justify-content:flex-end;
+  padding:0 52px 60px;
+  overflow:hidden;
+}
+/* big watermark letter */
+.p-hero-wm{
+  position:absolute;
+  bottom:-60px; right:-30px;
+  font-size:560px; font-weight:700;
+  line-height:.8; letter-spacing:-.06em;
+  color:rgba(0,0,0,.08);
+  pointer-events:none; user-select:none;
+  z-index:1;
+}
+.p-hero-wm.light{ color:rgba(255,255,255,.06); }
+/* brand name */
+.p-brand-name{
+  position:relative; z-index:2;
+  font-size:148px; line-height:.88;
+  letter-spacing:-.04em; font-weight:700;
+}
+.p-brand-name em{ font-style:normal; }
+/* category tag */
+.p-cat{
+  position:relative; z-index:2;
+  font-family:'JetBrains Mono',monospace;
+  font-size:20px; letter-spacing:.16em;
+  text-transform:uppercase; opacity:.6;
+  margin-bottom:24px;
+}
+/* accent stripe */
+.p-hero-stripe{
+  position:absolute;
+  bottom:0; left:0; right:0;
+  height:6px;
+  background:var(--accent);
+  z-index:3;
+}
+
+/* ─── BODY (lower 45%) ─── */
+.p-body{
+  position:absolute;
+  top:740px; left:0; right:0; bottom:0;
+  background:var(--bg);
+  padding:52px 52px 40px;
+  display:flex; flex-direction:column;
+  justify-content:space-between;
+  z-index:4;
+}
+.p-body-top{ display:flex; flex-direction:column; gap:20px; }
+
+/* headline */
+.p-headline{
+  font-size:52px; line-height:1.0;
+  letter-spacing:-.025em; font-weight:700;
+  color:#fff;
+}
+.p-headline em{ font-style:normal; color:var(--accent); }
+.p-headline-ar{
+  font-family:'IBM Plex Sans Arabic',sans-serif;
+  font-size:44px; line-height:1.15;
+  font-weight:700; letter-spacing:-.01em;
+}
+
+/* sub text */
+.p-sub{
+  font-size:22px; line-height:1.4;
+  color:rgba(255,255,255,.5);
+  font-weight:400; max-width:30ch;
+}
+.p-sub-ar{
+  font-family:'IBM Plex Sans Arabic',sans-serif;
+  font-size:20px; line-height:1.55;
+  color:rgba(255,255,255,.5); max-width:22ch;
+}
+
+/* services pills */
+.p-pills{
+  display:flex; flex-wrap:wrap; gap:10px;
+}
+.p-pill{
+  padding:8px 20px;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:999px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:15px; letter-spacing:.06em;
+  text-transform:uppercase;
+  color:rgba(255,255,255,.55);
+}
+.p-pill.hi{
+  border-color:var(--accent);
+  color:var(--accent);
+  background:rgba(196,245,71,.06);
+}
+
+/* CTA row */
+.p-cta-row{
+  display:flex; align-items:center;
+  justify-content:space-between;
+  border-top:1px solid rgba(255,255,255,.1);
+  padding-top:28px;
+}
+.p-cta-btn{
+  display:inline-flex; align-items:center; gap:14px;
+  background:var(--accent);
+  color:#0a0a0b;
+  padding:20px 40px;
+  border-radius:999px;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:22px; font-weight:700;
+  letter-spacing:-.01em;
+  white-space:nowrap;
+}
+.p-cta-btn .wa-icon{
+  width:28px; height:28px;
+  background:#0a0a0b;
+  border-radius:50%;
+  display:grid; place-items:center;
+  font-size:16px; flex-shrink:0;
+}
+.p-cta-num{
+  font-family:'JetBrains Mono',monospace;
+  font-size:18px; color:rgba(255,255,255,.3);
+  letter-spacing:.04em;
+  text-align:right;
+  line-height:1.4;
+}
+.p-cta-num span{
+  display:block; font-size:14px;
+  color:rgba(255,255,255,.2); margin-bottom:2px;
+}
+
+/* number badge */
+.p-num-badge{
+  position:absolute;
+  top:740px; right:52px;
+  transform:translateY(-50%);
+  background:var(--accent);
+  color:#0a0a0b;
+  font-family:'JetBrains Mono',monospace;
+  font-size:15px; font-weight:700;
+  letter-spacing:.1em;
+  padding:8px 18px;
+  border-radius:999px;
+  z-index:9;
+}
+
+
+/* ═══════════════════════════════════════
+   PER-BRAND OVERRIDES
+═══════════════════════════════════════ */
+
+/* 01 RIWAQ */
+.brand-riwaq{ --brand-bg:#F2E9D5; --brand-ink:#2A1A10; }
+.brand-riwaq .p-brand-name{
+  font-family:'Cormorant Garamond',serif;
+  font-weight:600; color:#2A1A10;
+}
+.brand-riwaq .p-cat{ color:rgba(42,26,16,.55); }
+.brand-riwaq .p-hero-wm{ color:rgba(42,26,16,.06); }
+
+/* 02 NAJD */
+.brand-najd{ --brand-bg:#EFE4D2; --brand-ink:#2A1B0A; }
+.brand-najd .p-brand-name{
+  font-family:'Frank Ruhl Libre',serif;
+  font-weight:900; color:#2A1B0A;
+}
+.brand-najd .p-cat{ color:rgba(42,27,10,.55); }
+.brand-najd .p-hero-wm{ color:rgba(42,27,10,.06); }
+
+/* 03 HADID */
+.brand-hadid{ --brand-bg:#0A0A0A; --brand-ink:#FF3A1F; }
+.brand-hadid .p-brand-name{
+  font-family:'Anton',sans-serif;
+  font-weight:400; text-transform:uppercase;
+  letter-spacing:-.02em; color:#EFEAE0;
+}
+.brand-hadid .p-brand-name em{ color:#FF3A1F; }
+.brand-hadid .p-cat{ color:rgba(239,234,224,.4); }
+.brand-hadid .p-hero-wm.light{ color:rgba(255,255,255,.04); }
+.brand-hadid .p-hero-stripe{ background:#FF3A1F; }
+
+/* 04 DAW */
+.brand-daw{ --brand-bg:#F4F1EA; --brand-ink:#3C3F35; }
+.brand-daw .p-brand-name{
+  font-family:'Italiana',serif;
+  font-weight:400; letter-spacing:.02em;
+  color:#3C3F35;
+}
+.brand-daw .p-cat{ color:rgba(60,63,53,.5); }
+.brand-daw .p-hero-wm{ color:rgba(60,63,53,.05); }
+
+/* 05 MADA */
+.brand-mada{ --brand-bg:#0F0F10; --brand-ink:#C9A55C; }
+.brand-mada .p-brand-name{
+  font-family:'Space Grotesk',sans-serif;
+  font-weight:800; letter-spacing:-.05em;
+  color:#C9A55C;
+}
+.brand-mada .p-cat{ color:rgba(201,165,92,.5); }
+.brand-mada .p-hero-wm{ color:rgba(201,165,92,.06); }
+.brand-mada .p-hero-stripe{ background:#C9A55C; }
+
+/* ─── RTL POST ─── */
+.post-rtl .p-hero{ padding:0 52px 60px; align-items:flex-end; text-align:right; }
+.post-rtl .p-brand-name{ text-align:right; }
+.post-rtl .p-hero-wm{ right:auto; left:-30px; }
+.post-rtl .p-body{ text-align:right; direction:rtl; }
+.post-rtl .p-pills{ justify-content:flex-end; }
+.post-rtl .p-cta-row{ flex-direction:row-reverse; }
+.post-rtl .p-cta-num{ text-align:left; }
+.post-rtl .p-num-badge{ right:auto; left:52px; }
+.post-rtl .p-chrome{ direction:ltr; }
+
+</style>
+<script>
+function fitPosts(){
+  document.querySelectorAll('.post-frame').forEach(f=>{
+    const p=f.querySelector('.post');
+    if(!p)return;
+    p.style.transform=`scale(${f.clientWidth/1080})`;
+  });
+}
+window.addEventListener('load',fitPosts);
+window.addEventListener('resize',fitPosts);
+</script>
+</head>
+<body>
+
+<div class="stage">
+
+<div class="stage-title">
+  <h1>Visuals<em>.sa</em> — إعلانات إنستقرام</h1>
+  <p>5 posts · 1080 × 1350 · bilingual · advertising-first</p>
+</div>
+
+<!-- ════════════════════════════════════════
+     ARABIC POSTS
+════════════════════════════════════════ -->
+<div class="lang-label"><span>●</span> AR · النسخة العربية</div>
+<div class="posts-grid">
+
+<!-- ── AR 01 · RIWAQ ── -->
+<div class="post-wrap">
+<div class="post-frame">
+<div class="post brand-riwaq post-rtl">
+  <div class="p-chrome">
+    <div class="logo-mark">VISUALS<em>.</em>SA</div>
+    <div class="tag">@visuals.sa</div>
+  </div>
+
+  <div class="p-hero">
+    <div class="p-hero-wm">R</div>
+    <div class="p-cat">كافيه · قهوة مختصة</div>
+    <div class="p-brand-name">Riw<em>aq</em><br/>رِواق</div>
+    <div class="p-hero-stripe"></div>
+  </div>
+
+  <div class="p-num-badge">01 / 05</div>
+
+  <div class="p-body">
+    <div class="p-body-top">
+      <div class="p-headline p-headline-ar">
+        براندك يستاهل<br/>أكثر من <em>مجرد لوجو.</em>
+      </div>
+      <div class="p-sub p-sub-ar">
+        صمّمنا هوية رِواق كاملة — من اللوجو للمنيو للموقع. كل تفصيل يحكي قصة.
+      </div>
+      <div class="p-pills">
+        <span class="p-pill hi">هوية بصرية</span>
+        <span class="p-pill">موقع</span>
+        <span class="p-pill">سوشال ميديا</span>
+      </div>
+    </div>
+    <div class="p-cta-row">
+      <div class="p-cta-btn">
+        <div class="wa-icon">✓</div>
+        تواصل الحين
+      </div>
+      <div class="p-cta-num">
+        <span>واتساب</span>
+        +966 54 516 6232
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="post-label">
+  <b><span class="dot-swatch" style="background:#C26538"></span>رِواق كوفي</b>
+  <span>كافيه</span>
+</div>
+</div>
+
+<!-- ── AR 02 · NAJD ── -->
+<div class="post-wrap">
+<div class="post-frame">
+<div class="post brand-najd post-rtl">
+  <div class="p-chrome">
+    <div class="logo-mark">VISUALS<em>.</em>SA</div>
+    <div class="tag">@visuals.sa</div>
+  </div>
+
+  <div class="p-hero">
+    <div class="p-hero-wm">N</div>
+    <div class="p-cat">مطعم · مطبخ سعودي</div>
+    <div class="p-brand-name">Na<em>jd</em><br/>نَجد</div>
+    <div class="p-hero-stripe"></div>
+  </div>
+
+  <div class="p-num-badge">02 / 05</div>
+
+  <div class="p-body">
+    <div class="p-body-top">
+      <div class="p-headline p-headline-ar">
+        الأصالة تحتاج<br/><em>تصميم</em> يليق بها.
+      </div>
+      <div class="p-sub p-sub-ar">
+        جمعنا التراث السعودي مع هوية عصرية. نجد صار براند يُعرف من بعيد.
+      </div>
+      <div class="p-pills">
+        <span class="p-pill hi">هوية بصرية</span>
+        <span class="p-pill">موقع</span>
+        <span class="p-pill">منيو ديزاين</span>
+      </div>
+    </div>
+    <div class="p-cta-row">
+      <div class="p-cta-btn">
+        <div class="wa-icon">✓</div>
+        تواصل الحين
+      </div>
+      <div class="p-cta-num">
+        <span>واتساب</span>
+        +966 54 516 6232
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="post-label">
+  <b><span class="dot-swatch" style="background:#D29139"></span>نَجد كيتشن</b>
+  <span>مطعم</span>
+</div>
+</div>
+
+<!-- ── AR 03 · HADID ── -->
+<div class="post-wrap">
+<div class="post-frame">
+<div class="post brand-hadid post-rtl">
+  <div class="p-chrome">
+    <div class="logo-mark">VISUALS<em>.</em>SA</div>
+    <div class="tag">@visuals.sa</div>
+  </div>
+
+  <div class="p-hero">
+    <div class="p-hero-wm light">H</div>
+    <div class="p-cat">نادي رياضي · أداء</div>
+    <div class="p-brand-name">HA<em>DI</em>D<br/><span style="font-family:'Cairo',sans-serif;font-size:110px;color:#EFEAE0;">حَديد</span></div>
+    <div class="p-hero-stripe"></div>
+  </div>
+
+  <div class="p-num-badge">03 / 05</div>
+
+  <div class="p-body">
+    <div class="p-body-top">
+      <div class="p-headline p-headline-ar">
+        سوّقلك براندك<br/>بقوة <em>تليق بقوتك.</em>
+      </div>
+      <div class="p-sub p-sub-ar">
+        حديد جاب هوية تهيمن. تايبوغرافي صارخة، ألوان تشعل الحماس، تصميم يطرد الضعف.
+      </div>
+      <div class="p-pills">
+        <span class="p-pill hi">هوية بصرية</span>
+        <span class="p-pill">موقع</span>
+        <span class="p-pill">إعلانات</span>
+      </div>
+    </div>
+    <div class="p-cta-row">
+      <div class="p-cta-btn">
+        <div class="wa-icon">✓</div>
+        تواصل الحين
+      </div>
+      <div class="p-cta-num">
+        <span>واتساب</span>
+        +966 54 516 6232
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="post-label">
+  <b><span class="dot-swatch" style="background:#FF3A1F"></span>حَديد جيم</b>
+  <span>رياضة</span>
+</div>
+</div>
+
+<!-- ── AR 04 · DAW ── -->
+<div class="post-wrap">
+<div class="post-frame">
+<div class="post brand-daw post-rtl">
+  <div class="p-chrome">
+    <div class="logo-mark">VISUALS<em>.</em>SA</div>
+    <div class="tag">@visuals.sa</div>
+  </div>
+
+  <div class="p-hero">
+    <div class="p-hero-wm">D</div>
+    <div class="p-cat">أزياء · أتيليه</div>
+    <div class="p-brand-name">Daw<em>'</em><br/>ضَوء</div>
+    <div class="p-hero-stripe"></div>
+  </div>
+
+  <div class="p-num-badge">04 / 05</div>
+
+  <div class="p-body">
+    <div class="p-body-top">
+      <div class="p-headline p-headline-ar">
+        الأناقة الحقيقية<br/>تبدأ من <em>الهوية.</em>
+      </div>
+      <div class="p-sub p-sub-ar">
+        ضوء حصل على هوية تعكس روحه — ناعمة، راقية، ولا تُنسى. هكذا يُبنى براند أزياء.
+      </div>
+      <div class="p-pills">
+        <span class="p-pill hi">هوية بصرية</span>
+        <span class="p-pill">موقع</span>
+        <span class="p-pill">لوك بوك</span>
+      </div>
+    </div>
+    <div class="p-cta-row">
+      <div class="p-cta-btn">
+        <div class="wa-icon">✓</div>
+        تواصل الحين
+      </div>
+      <div class="p-cta-num">
+        <span>واتساب</span>
+        +966 54 516 6232
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="post-label">
+  <b><span class="dot-swatch" style="background:#9DA489"></span>ضَوء أتيليه</b>
+  <span>أزياء</span>
+</div>
+</div>
+
+<!-- ── AR 05 · MADA ── -->
+<div class="post-wrap">
+<div class="post-frame">
+<div class="post brand-mada post-rtl">
+  <div class="p-chrome">
+    <div class="logo-mark">VISUALS<em>.</em>SA</div>
+    <div class="tag">@visuals.sa</div>
+  </div>
+
+  <div class="p-hero">
+    <div class="p-hero-wm">M</div>
+    <div class="p-cat">سيارات · سبور لاكشري</div>
+    <div class="p-brand-name">Mad<em>a</em><br/>مَدى</div>
+    <div class="p-hero-stripe"></div>
+  </div>
+
+  <div class="p-num-badge">05 / 05</div>
+
+  <div class="p-body">
+    <div class="p-body-top">
+      <div class="p-headline p-headline-ar">
+        براند يعكس<br/><em>مستوى</em> منتجك الفاخر.
+      </div>
+      <div class="p-sub p-sub-ar">
+        مدى يستحق تصميمًا بمستوى السيارات اللي يبيعها. صممنا له هوية تنافس العالمي.
+      </div>
+      <div class="p-pills">
+        <span class="p-pill hi">هوية بصرية</span>
+        <span class="p-pill">موقع</span>
+        <span class="p-pill">إعلانات</span>
+      </div>
+    </div>
+    <div class="p-cta-row">
+      <div class="p-cta-btn">
+        <div class="wa-icon">✓</div>
+        تواصل الحين
+      </div>
+      <div class="p-cta-num">
+        <span>واتساب</span>
+        +966 54 516 6232
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="post-label">
+  <b><span class="dot-swatch" style="background:#C9A55C"></span>مَدى موتورز</b>
+  <span>سيارات</span>
+</div>
+</div>
+
+</div><!-- /posts-grid AR -->
+
+
+<!-- ════════════════════════════════════════
+     ENGLISH POSTS
+════════════════════════════════════════ -->
+<div class="lang-label" style="margin-top:100px;"><span>●</span> EN · English version</div>
+<div class="posts-grid">
+
+<!-- ── EN 01 · RIWAQ ── -->
+<div class="post-wrap">
+<div class="post-frame">
+<div class="post brand-riwaq">
+  <div class="p-chrome">
+    <div class="logo-mark">VISUALS<em>.</em>SA</div>
+    <div class="tag">@visuals.sa</div>
+  </div>
+
+  <div class="p-hero">
+    <div class="p-hero-wm">R</div>
+    <div class="p-cat">Café · Specialty Coffee</div>
+    <div class="p-brand-name">Riw<em>aq</em></div>
+    <div class="p-hero-stripe"></div>
+  </div>
+
+  <div class="p-num-badge">01 / 05</div>
+
+  <div class="p-body">
+    <div class="p-body-top">
+      <div class="p-headline">
+        Your brand deserves more<br/>than just <em>a logo.</em>
+      </div>
+      <div class="p-sub">
+        We built Riwaq's full identity — logo, menu, website. Every detail tells the story.
+      </div>
+      <div class="p-pills">
+        <span class="p-pill hi">Brand Identity</span>
+        <span class="p-pill">Website</span>
+        <span class="p-pill">Social Media</span>
+      </div>
+    </div>
+    <div class="p-cta-row">
+      <div class="p-cta-btn">
+        <div class="wa-icon">✓</div>
+        WhatsApp us
+      </div>
+      <div class="p-cta-num">
+        <span>WhatsApp</span>
+        +966 54 516 6232
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="post-label">
+  <b><span class="dot-swatch" style="background:#C26538"></span>Riwaq Coffee</b>
+  <span>Café</span>
+</div>
+</div>
+
+<!-- ── EN 02 · NAJD ── -->
+<div class="post-wrap">
+<div class="post-frame">
+<div class="post brand-najd">
+  <div class="p-chrome">
+    <div class="logo-mark">VISUALS<em>.</em>SA</div>
+    <div class="tag">@visuals.sa</div>
+  </div>
+
+  <div class="p-hero">
+    <div class="p-hero-wm">N</div>
+    <div class="p-cat">Restaurant · Saudi Cuisine</div>
+    <div class="p-brand-name">Na<em>jd</em></div>
+    <div class="p-hero-stripe"></div>
+  </div>
+
+  <div class="p-num-badge">02 / 05</div>
+
+  <div class="p-body">
+    <div class="p-body-top">
+      <div class="p-headline">
+        Heritage deserves<br/>a <em>design</em> that honors it.
+      </div>
+      <div class="p-sub">
+        We bridged Saudi tradition with a bold modern identity. Najd became recognizable from a mile away.
+      </div>
+      <div class="p-pills">
+        <span class="p-pill hi">Brand Identity</span>
+        <span class="p-pill">Website</span>
+        <span class="p-pill">Menu Design</span>
+      </div>
+    </div>
+    <div class="p-cta-row">
+      <div class="p-cta-btn">
+        <div class="wa-icon">✓</div>
+        WhatsApp us
+      </div>
+      <div class="p-cta-num">
+        <span>WhatsApp</span>
+        +966 54 516 6232
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="post-label">
+  <b><span class="dot-swatch" style="background:#D29139"></span>Najd Kitchen</b>
+  <span>Restaurant</span>
+</div>
+</div>
+
+<!-- ── EN 03 · HADID ── -->
+<div class="post-wrap">
+<div class="post-frame">
+<div class="post brand-hadid">
+  <div class="p-chrome">
+    <div class="logo-mark">VISUALS<em>.</em>SA</div>
+    <div class="tag">@visuals.sa</div>
+  </div>
+
+  <div class="p-hero">
+    <div class="p-hero-wm light">H</div>
+    <div class="p-cat">Gym · Performance</div>
+    <div class="p-brand-name">HA<em>DI</em>D</div>
+    <div class="p-hero-stripe"></div>
+  </div>
+
+  <div class="p-num-badge">03 / 05</div>
+
+  <div class="p-body">
+    <div class="p-body-top">
+      <div class="p-headline">
+        Your brand should hit<br/>as hard as <em>your training.</em>
+      </div>
+      <div class="p-sub">
+        Hadid got a dominant identity — bold type, aggressive color, zero compromise.
+      </div>
+      <div class="p-pills">
+        <span class="p-pill hi">Brand Identity</span>
+        <span class="p-pill">Website</span>
+        <span class="p-pill">Ads Design</span>
+      </div>
+    </div>
+    <div class="p-cta-row">
+      <div class="p-cta-btn">
+        <div class="wa-icon">✓</div>
+        WhatsApp us
+      </div>
+      <div class="p-cta-num">
+        <span>WhatsApp</span>
+        +966 54 516 6232
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="post-label">
+  <b><span class="dot-swatch" style="background:#FF3A1F"></span>Hadid Gym</b>
+  <span>Sport</span>
+</div>
+</div>
+
+<!-- ── EN 04 · DAW ── -->
+<div class="post-wrap">
+<div class="post-frame">
+<div class="post brand-daw">
+  <div class="p-chrome">
+    <div class="logo-mark">VISUALS<em>.</em>SA</div>
+    <div class="tag">@visuals.sa</div>
+  </div>
+
+  <div class="p-hero">
+    <div class="p-hero-wm">D</div>
+    <div class="p-cat">Fashion · Atelier</div>
+    <div class="p-brand-name">Daw<em>'</em></div>
+    <div class="p-hero-stripe"></div>
+  </div>
+
+  <div class="p-num-badge">04 / 05</div>
+
+  <div class="p-body">
+    <div class="p-body-top">
+      <div class="p-headline">
+        Real elegance starts<br/>with the <em>right identity.</em>
+      </div>
+      <div class="p-sub">
+        Daw' got a brand that feels like the clothes it sells — quiet, refined, unforgettable.
+      </div>
+      <div class="p-pills">
+        <span class="p-pill hi">Brand Identity</span>
+        <span class="p-pill">Website</span>
+        <span class="p-pill">Lookbook</span>
+      </div>
+    </div>
+    <div class="p-cta-row">
+      <div class="p-cta-btn">
+        <div class="wa-icon">✓</div>
+        WhatsApp us
+      </div>
+      <div class="p-cta-num">
+        <span>WhatsApp</span>
+        +966 54 516 6232
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="post-label">
+  <b><span class="dot-swatch" style="background:#9DA489"></span>Daw' Atelier</b>
+  <span>Fashion</span>
+</div>
+</div>
+
+<!-- ── EN 05 · MADA ── -->
+<div class="post-wrap">
+<div class="post-frame">
+<div class="post brand-mada">
+  <div class="p-chrome">
+    <div class="logo-mark">VISUALS<em>.</em>SA</div>
+    <div class="tag">@visuals.sa</div>
+  </div>
+
+  <div class="p-hero">
+    <div class="p-hero-wm">M</div>
+    <div class="p-cat">Auto · Sport Luxury</div>
+    <div class="p-brand-name">Mad<em>a</em></div>
+    <div class="p-hero-stripe"></div>
+  </div>
+
+  <div class="p-num-badge">05 / 05</div>
+
+  <div class="p-body">
+    <div class="p-body-top">
+      <div class="p-headline">
+        A brand that matches<br/>the <em>luxury</em> you sell.
+      </div>
+      <div class="p-sub">
+        Mada deserved a world-class identity. We built one that competes on the global stage.
+      </div>
+      <div class="p-pills">
+        <span class="p-pill hi">Brand Identity</span>
+        <span class="p-pill">Website</span>
+        <span class="p-pill">Ads Design</span>
+      </div>
+    </div>
+    <div class="p-cta-row">
+      <div class="p-cta-btn">
+        <div class="wa-icon">✓</div>
+        WhatsApp us
+      </div>
+      <div class="p-cta-num">
+        <span>WhatsApp</span>
+        +966 54 516 6232
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="post-label">
+  <b><span class="dot-swatch" style="background:#C9A55C"></span>Mada Motors</b>
+  <span>Auto</span>
+</div>
+</div>
+
+</div><!-- /posts-grid EN -->
+
+</div><!-- /stage -->
+</body>
+</html>
