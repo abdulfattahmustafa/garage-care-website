@@ -7,6 +7,7 @@ const { logActivity } = require('../lib/activity');
 const { uploadSingle, getUploadsDir } = require('../lib/upload');
 const { getCustomFields, parseCustomData, valuesFromBody, validateAndBuild } = require('../lib/customFields');
 const { getUnifiedTimeline } = require('../lib/timeline');
+const { findOrCreateBuyer, getBuyerSales } = require('../lib/buyers');
 
 const PAYMENT_METHODS = ['نقدي', 'تمويل', 'شركات', 'جهات حكومية'];
 const STATUSES = ['جديد', 'تم التسليم', 'تمت المتابعة', 'عميل متكرر'];
@@ -202,6 +203,24 @@ function renderCustomerList(req, res, customerType) {
 router.get('/', (req, res) => renderCustomerList(req, res, 'رخصة واستمارة'));
 router.get('/dealers', (req, res) => renderCustomerList(req, res, 'معارض'));
 
+// Live search-and-fill for the add-sale form: lets a repeat buyer's
+// name/national_id/phone get picked instead of retyped. Read-only, same
+// access level as the customer lists it searches (no role gate).
+router.get('/buyers-search', (req, res) => {
+  const db = req.db;
+  const q = (req.query.q || '').trim();
+  const customerType = CUSTOMER_TYPES.includes(req.query.customer_type) ? req.query.customer_type : null;
+  if (!q) return res.json([]);
+  const like = `%${q}%`;
+  let sql = `SELECT id, customer_type, customer_name, national_id, phone,
+      (SELECT MAX(sale_date) FROM customers WHERE customers.buyer_id = buyers.id) AS last_sale_date
+    FROM buyers WHERE (customer_name LIKE @like OR national_id LIKE @like)`;
+  const params = { like };
+  if (customerType) { sql += ' AND customer_type = @customer_type'; params.customer_type = customerType; }
+  sql += ' ORDER BY customer_name LIMIT 8';
+  res.json(db.prepare(sql).all(params));
+});
+
 router.get('/new', (req, res) => {
   const db = req.db;
   let prefill = null;
@@ -214,6 +233,18 @@ router.get('/new', (req, res) => {
         salesperson: prospect.salesperson,
         car_type: prospect.interested_car,
         from_prospect_id: prospect.id,
+      };
+    }
+  }
+  if (req.query.buyer_id) {
+    const buyer = db.prepare('SELECT * FROM buyers WHERE id = ?').get(req.query.buyer_id);
+    if (buyer) {
+      prefill = {
+        ...(prefill || {}),
+        customer_type: buyer.customer_type,
+        customer_name: buyer.customer_name,
+        national_id: buyer.national_id,
+        phone: buyer.phone,
       };
     }
   }
@@ -270,24 +301,31 @@ router.post('/', (req, res) => {
 
   const ts = nowISO();
   const primary = primaryCarFields(cars);
+  const customerType = CUSTOMER_TYPES.includes(body.customer_type) ? body.customer_type : CUSTOMER_TYPES[0];
+  const customerName = body.customer_name.trim();
+  const nationalId = body.national_id.trim();
+  const phone = body.phone ? body.phone.trim() : null;
+  const buyerId = findOrCreateBuyer(db, { customerType, customerName, nationalId, phone }, ts);
+
   const stmt = db.prepare(`INSERT INTO customers
-    (customer_type, customer_name, national_id, sale_date, payment_method, bank_name, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, followup_done, custom_data, created_by, updated_by, is_demo, created_at, updated_at)
-    VALUES (@customer_type, @customer_name, @national_id, @sale_date, @payment_method, @bank_name, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, 0, 0, @custom_data, @created_by, @updated_by, 0, @created_at, @updated_at)`);
+    (customer_type, customer_name, national_id, sale_date, payment_method, bank_name, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, followup_done, custom_data, buyer_id, created_by, updated_by, is_demo, created_at, updated_at)
+    VALUES (@customer_type, @customer_name, @national_id, @sale_date, @payment_method, @bank_name, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, 0, 0, @custom_data, @buyer_id, @created_by, @updated_by, 0, @created_at, @updated_at)`);
 
   const info = stmt.run({
-    customer_type: CUSTOMER_TYPES.includes(body.customer_type) ? body.customer_type : CUSTOMER_TYPES[0],
-    customer_name: body.customer_name.trim(),
-    national_id: body.national_id.trim(),
+    customer_type: customerType,
+    customer_name: customerName,
+    national_id: nationalId,
     sale_date: body.sale_date,
     payment_method: body.payment_method,
     bank_name: body.payment_method === 'تمويل' && BANKS.includes(body.bank_name) ? body.bank_name : null,
     delivery_at: body.delivery_at || null,
     ...primary,
-    phone: body.phone ? body.phone.trim() : null,
+    phone,
     salesperson: body.salesperson ? body.salesperson.trim() : null,
     notes: body.notes || null,
     status: STATUSES.includes(body.status) ? body.status : 'جديد',
     custom_data: Object.keys(customData).length ? JSON.stringify(customData) : null,
+    buyer_id: buyerId,
     created_by: req.session.userName, updated_by: req.session.userName,
     created_at: ts, updated_at: ts,
   });
@@ -314,7 +352,8 @@ router.get('/:id', (req, res) => {
   const customValues = parseCustomData(customer.custom_data);
   const timeline = getUnifiedTimeline(db, { entityType: 'customer', entityId: customer.id, logTable: 'contact_log', logIdCol: 'customer_id' });
   const cars = getSaleCars(db, customer.id);
-  res.render('customers/detail', { customer, attachments, isReportOverdue, uploadError: req.query.error || null, customFields, customValues, timeline, cars });
+  const buyerSales = getBuyerSales(db, customer.buyer_id, customer.id);
+  res.render('customers/detail', { customer, attachments, isReportOverdue, uploadError: req.query.error || null, customFields, customValues, timeline, cars, buyerSales });
 });
 
 router.get('/:id/edit', (req, res) => {
@@ -350,24 +389,31 @@ router.post('/:id', (req, res) => {
 
   const ts = nowISO();
   const primary = primaryCarFields(cars);
+  const customerType = CUSTOMER_TYPES.includes(body.customer_type) ? body.customer_type : CUSTOMER_TYPES[0];
+  const customerName = body.customer_name.trim();
+  const nationalId = body.national_id.trim();
+  const phone = body.phone ? body.phone.trim() : null;
+  const buyerId = findOrCreateBuyer(db, { customerType, customerName, nationalId, phone }, ts);
+
   db.prepare(`UPDATE customers SET
     customer_type=@customer_type, customer_name=@customer_name, national_id=@national_id, sale_date=@sale_date, payment_method=@payment_method, bank_name=@bank_name,
     delivery_at=@delivery_at, car_type=@car_type, car_inventory_id=@car_inventory_id, vin=@vin, estimara_number=@estimara_number, phone=@phone,
-    salesperson=@salesperson, price=@price, notes=@notes, status=@status, custom_data=@custom_data, updated_by=@updated_by, updated_at=@updated_at
+    salesperson=@salesperson, price=@price, notes=@notes, status=@status, custom_data=@custom_data, buyer_id=@buyer_id, updated_by=@updated_by, updated_at=@updated_at
     WHERE id=@id`).run({
-    customer_type: CUSTOMER_TYPES.includes(body.customer_type) ? body.customer_type : CUSTOMER_TYPES[0],
-    customer_name: body.customer_name.trim(),
-    national_id: body.national_id.trim(),
+    customer_type: customerType,
+    customer_name: customerName,
+    national_id: nationalId,
     sale_date: body.sale_date,
     payment_method: body.payment_method,
     bank_name: body.payment_method === 'تمويل' && BANKS.includes(body.bank_name) ? body.bank_name : null,
     delivery_at: body.delivery_at || null,
     ...primary,
-    phone: body.phone ? body.phone.trim() : null,
+    phone,
     salesperson: body.salesperson ? body.salesperson.trim() : null,
     notes: body.notes || null,
     status: STATUSES.includes(body.status) ? body.status : existing.status,
     custom_data: Object.keys(customData).length ? JSON.stringify(customData) : null,
+    buyer_id: buyerId,
     updated_by: req.session.userName,
     updated_at: ts,
     id: req.params.id,

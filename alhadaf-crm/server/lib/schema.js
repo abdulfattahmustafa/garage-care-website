@@ -20,6 +20,22 @@ CREATE TABLE IF NOT EXISTS car_inventory (
   UNIQUE(brand, model, year, trim, color)
 );
 
+-- A persistent buyer/dealer profile, separate from each individual sale —
+-- lets a repeat buyer's identity (name/national_id/phone) be picked once
+-- when adding a new sale instead of retyped every time. customers keeps
+-- its own copy of customer_name/national_id/phone too (unchanged, still
+-- the source every existing reader uses) so this is purely additive.
+CREATE TABLE IF NOT EXISTS buyers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_type TEXT NOT NULL DEFAULT 'رخصة واستمارة',
+  customer_name TEXT NOT NULL,
+  national_id TEXT NOT NULL,
+  phone TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(customer_type, national_id)
+);
+
 CREATE TABLE IF NOT EXISTS customers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   customer_type TEXT NOT NULL DEFAULT 'رخصة واستمارة',
@@ -47,6 +63,7 @@ CREATE TABLE IF NOT EXISTS customers (
   created_by TEXT,
   updated_by TEXT,
   custom_data TEXT,
+  buyer_id INTEGER REFERENCES buyers(id) ON DELETE SET NULL,
   is_demo INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -173,6 +190,7 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_prospect_log_prospect ON prospect_log(prospect_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
 CREATE INDEX IF NOT EXISTS idx_sale_cars_customer ON sale_cars(customer_id);
+CREATE INDEX IF NOT EXISTS idx_buyers_national_id ON buyers(customer_type, national_id);
 `);
 
   // Migration for tenant databases created before car_inventory/created_by
@@ -197,6 +215,14 @@ CREATE INDEX IF NOT EXISTS idx_sale_cars_customer ON sale_cars(customer_id);
   if (!customerCols.includes('custom_data')) {
     db.exec('ALTER TABLE customers ADD COLUMN custom_data TEXT');
   }
+  if (!customerCols.includes('buyer_id')) {
+    db.exec('ALTER TABLE customers ADD COLUMN buyer_id INTEGER REFERENCES buyers(id) ON DELETE SET NULL');
+  }
+  // Index created here (not in the CREATE TABLE block above) because that
+  // block's CREATE TABLE IF NOT EXISTS is a no-op on a pre-existing
+  // customers table — buyer_id only actually exists on this table once the
+  // ALTER TABLE above (or a fresh create) has run.
+  db.exec('CREATE INDEX IF NOT EXISTS idx_customers_buyer ON customers(buyer_id)');
 
   // Migration for customers tables created before "معارض" (dealer) sales
   // existed: estimara_number was NOT NULL, but dealer sales don't always
@@ -241,19 +267,22 @@ CREATE INDEX IF NOT EXISTS idx_sale_cars_customer ON sale_cars(customer_id);
       created_by TEXT,
       updated_by TEXT,
       custom_data TEXT,
+      buyer_id INTEGER REFERENCES buyers(id) ON DELETE SET NULL,
       is_demo INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`);
-    // NOTE: bank_name/custom_data are deliberately left out of this copy —
-    // at the point this rebuild runs, customers_old may or may not have
-    // those columns yet depending on migration order, so they're populated
-    // by their own ALTER TABLE migrations above instead of here (those
-    // ALTERs run unconditionally against whatever "customers" currently is).
+    // NOTE: bank_name/custom_data/buyer_id are deliberately left out of this
+    // copy — at the point this rebuild runs, customers_old may or may not
+    // have those columns yet depending on migration order, so they're
+    // populated by their own ALTER TABLE migrations above instead of here
+    // (those ALTERs run unconditionally against whatever "customers"
+    // currently is).
     const oldCols = db.prepare("PRAGMA table_info(customers_old)").all().map(c => c.name);
     const copyCols = ['id', 'customer_type', 'customer_name', 'national_id', 'sale_date', 'payment_method', 'delivery_at', 'car_type', 'car_inventory_id', 'vin', 'estimara_number', 'phone', 'salesperson', 'price', 'notes', 'status', 'reported', 'reported_at', 'followup_done', 'followup_result', 'followup_note', 'followup_at', 'created_by', 'updated_by', 'is_demo', 'created_at', 'updated_at'];
     if (oldCols.includes('bank_name')) copyCols.splice(6, 0, 'bank_name');
     if (oldCols.includes('custom_data')) copyCols.splice(copyCols.indexOf('updated_by') + 1, 0, 'custom_data');
+    if (oldCols.includes('buyer_id')) copyCols.splice(copyCols.indexOf('updated_by') + 1, 0, 'buyer_id');
     const colList = copyCols.join(', ');
     db.exec(`INSERT INTO customers (${colList}) SELECT ${colList} FROM customers_old`);
     db.exec('DROP TABLE customers_old');
@@ -365,6 +394,7 @@ CREATE INDEX IF NOT EXISTS idx_sale_cars_customer ON sale_cars(customer_id);
       created_by TEXT,
       updated_by TEXT,
       custom_data TEXT,
+      buyer_id INTEGER REFERENCES buyers(id) ON DELETE SET NULL,
       is_demo INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -448,6 +478,37 @@ CREATE INDEX IF NOT EXISTS idx_sale_cars_customer ON sale_cars(customer_id);
     const insertCar = db.prepare(`INSERT INTO sale_cars (customer_id, car_type, car_inventory_id, vin, estimara_number, price, created_at) VALUES (?,?,?,?,?,?,?)`);
     for (const c of needsCarBackfill) {
       insertCar.run(c.id, c.car_type, c.car_inventory_id, c.vin, c.estimara_number, c.price, c.created_at);
+    }
+  }
+
+  // Migration for tenant databases created before buyer profiles existed:
+  // link every existing sale to a buyer, grouping sales by (customer_type,
+  // national_id) — the same identifier the add-sale form already treats as
+  // "this is the same person/dealer". Processed oldest-first so a buyer's
+  // name/phone end up matching their most recent sale (people's phone
+  // numbers/name spelling can drift over time; the latest sale is the best
+  // guess at their current info). Anything already linked is skipped, so
+  // this only ever touches genuinely legacy rows.
+  const needsBuyerLink = db.prepare(`
+    SELECT id, customer_type, customer_name, national_id, phone, created_at
+    FROM customers WHERE buyer_id IS NULL ORDER BY created_at ASC, id ASC
+  `).all();
+  if (needsBuyerLink.length) {
+    const findBuyer = db.prepare('SELECT id FROM buyers WHERE customer_type = ? AND national_id = ?');
+    const insertBuyer = db.prepare('INSERT INTO buyers (customer_type, customer_name, national_id, phone, created_at, updated_at) VALUES (?,?,?,?,?,?)');
+    const touchBuyer = db.prepare('UPDATE buyers SET customer_name = ?, phone = ?, updated_at = ? WHERE id = ?');
+    const linkCustomer = db.prepare('UPDATE customers SET buyer_id = ? WHERE id = ?');
+    for (const c of needsBuyerLink) {
+      let buyer = findBuyer.get(c.customer_type, c.national_id);
+      let buyerId;
+      if (buyer) {
+        touchBuyer.run(c.customer_name, c.phone, c.created_at, buyer.id);
+        buyerId = buyer.id;
+      } else {
+        const info = insertBuyer.run(c.customer_type, c.customer_name, c.national_id, c.phone, c.created_at, c.created_at);
+        buyerId = info.lastInsertRowid;
+      }
+      linkCustomer.run(buyerId, c.id);
     }
   }
 

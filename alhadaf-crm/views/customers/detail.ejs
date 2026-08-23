@@ -109,6 +109,30 @@
       </div>
     </div>
 
+    <% if (typeof buyerSales !== 'undefined' && buyerSales.length) { %>
+    <div class="card" style="margin-top:20px">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px">
+        <div class="section-title" style="font-size:16px; margin:0"><span class="bar"></span> عمليات بيع سابقة لنفس <%= customer.customer_type === 'معارض' ? 'المعرض' : 'العميل' %> (<%= buyerSales.length %>)</div>
+        <a class="btn btn-outline btn-sm" href="/customers/new?buyer_id=<%= customer.buyer_id %><%= customer.customer_type === 'معارض' ? '&type=dealer' : '' %>">+ إضافة عملية بيع جديدة لنفس <%= customer.customer_type === 'معارض' ? 'المعرض' : 'العميل' %></a>
+      </div>
+      <div class="table-wrap" style="padding:0; margin-top:10px">
+        <table>
+          <thead><tr><th>تاريخ البيع</th><th>نوع السيارة</th><th>السعر</th><th>الحالة</th></tr></thead>
+          <tbody>
+            <% buyerSales.forEach(s => { %>
+              <tr>
+                <td><a href="/customers/<%= s.id %>"><%= s.sale_date %></a></td>
+                <td><%= s.car_type %></td>
+                <td><%= s.price ? Number(s.price).toLocaleString('en-US') + ' ريال' : '—' %></td>
+                <td><span class="badge badge-gray"><%= s.status %></span></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <% } %>
+
     <div class="card" style="margin-top:20px">
       <div class="section-title" style="font-size:16px"><span class="bar"></span> السيارات (<%= cars.length %>)</div>
       <div class="table-wrap" style="padding:0">

@@ -16,6 +16,16 @@
         <div class="flash flash-success" style="margin-bottom:16px">تعبئة تلقائية من عميل محتمل — أكمل باقي بيانات البيع.</div>
       <% } %>
 
+      <% if (!(customer && customer.id)) { %>
+      <div class="field" style="position:relative">
+        <label>🔍 ابحث عن عميل أو معرض سابق (لتعبئة بياناته تلقائيًا)</label>
+        <input type="text" id="buyerSearchInput" placeholder="اكتب الاسم أو رقم الهوية/700..." autocomplete="off">
+        <div id="buyerSearchResults" style="display:none; position:absolute; top:100%; right:0; left:0; z-index:20; background:var(--card-bg,#fff); border:1px solid var(--border); border-radius:8px; margin-top:4px; max-height:260px; overflow:auto; box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
+        <div class="hint">يفيد بالذات مع المعارض المتكررة — يعبّي الاسم ورقم الهوية والجوال تلقائيًا بدون إعادة كتابتها.</div>
+      </div>
+      <div class="divider"></div>
+      <% } %>
+
       <div class="field">
         <label>نوع العميل *</label>
         <div class="form-row" style="gap:20px">
@@ -222,6 +232,53 @@
 
     typeLicense.addEventListener('change', applyCustomerType);
     typeDealer.addEventListener('change', applyCustomerType);
+
+    // ===== بحث عن عميل/معرض سابق لتعبئة بياناته تلقائيًا (بيع جديد فقط) =====
+    const buyerSearchInput = document.getElementById('buyerSearchInput');
+    if (buyerSearchInput) {
+      const buyerSearchResults = document.getElementById('buyerSearchResults');
+      const customerNameInput = document.querySelector('input[name="customer_name"]');
+      const phoneInput = document.querySelector('input[name="phone"]');
+      let searchTimer = null;
+
+      function hideResults() { buyerSearchResults.style.display = 'none'; buyerSearchResults.innerHTML = ''; }
+
+      buyerSearchInput.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        const q = buyerSearchInput.value.trim();
+        if (!q) { hideResults(); return; }
+        searchTimer = setTimeout(() => {
+          const customerType = typeDealer.checked ? 'معارض' : 'رخصة واستمارة';
+          fetch('/customers/buyers-search?q=' + encodeURIComponent(q) + '&customer_type=' + encodeURIComponent(customerType))
+            .then(r => r.json())
+            .then(results => {
+              if (!results.length) { hideResults(); return; }
+              buyerSearchResults.innerHTML = results.map((b, i) =>
+                `<div class="buyer-result-item" data-i="${i}" style="padding:8px 10px; cursor:pointer; border-bottom:1px solid var(--border)">
+                  <strong>${b.customer_name}</strong>
+                  <div class="muted" style="font-size:12px">${b.national_id}${b.phone ? ' · ' + b.phone : ''}${b.last_sale_date ? ' · آخر عملية بيع: ' + b.last_sale_date : ''}</div>
+                </div>`
+              ).join('');
+              buyerSearchResults.style.display = '';
+              buyerSearchResults.querySelectorAll('.buyer-result-item').forEach(el => {
+                el.addEventListener('click', () => {
+                  const b = results[Number(el.dataset.i)];
+                  customerNameInput.value = b.customer_name;
+                  nationalIdInput.value = b.national_id;
+                  if (phoneInput) phoneInput.value = b.phone || '';
+                  buyerSearchInput.value = '';
+                  hideResults();
+                });
+              });
+            })
+            .catch(() => hideResults());
+        }, 300);
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!buyerSearchResults.contains(e.target) && e.target !== buyerSearchInput) hideResults();
+      });
+    }
 
     // ===== قسم السيارات (يقدر يشيل أكثر من سيارة بنفس عملية البيع) =====
     const CAR_INVENTORY = <%- JSON.stringify(carInventory) %>;
