@@ -409,18 +409,24 @@
         trimSel.disabled = false;
       });
 
+      // لون فاضي بالكتالوج (سيارة أُضيفت بدون تحديد لون) لازم يبقى قابل
+      // للاختيار كخيار حقيقي مميّز عن خيار الـ placeholder الأساسي — الاثنان
+      // ما يقدرون يتشاركون value="" فارغة وإلا ما نقدر نفرّق بينهم عند
+      // التغيير، فنستخدم قيمة رمزية "__blank__" للون الفاضي بس بهذي القائمة.
       trimSel.addEventListener('change', () => {
         resetFrom(4);
         if (!trimSel.value) return;
         const colors = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value && c.trim === trimSel.value), 'color');
-        fillSelect(colorSel, colors, 'اختر اللون...');
+        colorSel.innerHTML = '<option value="">اختر اللون...</option>' +
+          colors.map(v => v === '' ? '<option value="__blank__">بدون لون محدد</option>' : '<option value="' + v + '">' + v + '</option>').join('');
         colorSel.disabled = false;
       });
 
       colorSel.addEventListener('change', () => {
         if (!colorSel.value) { hiddenType.value = ''; hiddenInvId.value = ''; return; }
-        const match = CAR_INVENTORY.find(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value && c.trim === trimSel.value && c.color === colorSel.value);
-        hiddenType.value = brandSel.value + ' ' + modelSel.value + ' ' + yearSel.value + ' ' + trimSel.value + ' - ' + colorSel.value;
+        const actualColor = colorSel.value === '__blank__' ? '' : colorSel.value;
+        const match = CAR_INVENTORY.find(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value && c.trim === trimSel.value && c.color === actualColor);
+        hiddenType.value = brandSel.value + ' ' + modelSel.value + ' ' + yearSel.value + ' ' + trimSel.value + (actualColor ? ' - ' + actualColor : '');
         hiddenInvId.value = match ? match.id : '';
       });
 
@@ -456,7 +462,7 @@
         modelSel.value = match.model; modelSel.dispatchEvent(new Event('change'));
         yearSel.value = String(match.year); yearSel.dispatchEvent(new Event('change'));
         trimSel.value = match.trim; trimSel.dispatchEvent(new Event('change'));
-        colorSel.value = match.color; colorSel.dispatchEvent(new Event('change'));
+        colorSel.value = match.color === '' ? '__blank__' : match.color; colorSel.dispatchEvent(new Event('change'));
       } else if (data.car_type) {
         manualToggle.checked = true;
         manualToggle.dispatchEvent(new Event('change'));

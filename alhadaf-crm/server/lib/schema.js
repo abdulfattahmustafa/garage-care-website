@@ -1,3 +1,36 @@
+// Official Toyota (توتيوتا) catalog — car_inventory seed data, requested by
+// the owner to replace whatever Toyota entries existed with the exact
+// lineup/trim names from toyota.com.sa (25 models / 117 trims, transcribed
+// from a snapshot the owner captured 2026-08-23). color/purchase_price are
+// intentionally left blank — sellers fill those in per actual unit later.
+const TOYOTA_CATALOG = [
+  { model: 'Yaris', year: '2026', trims: ['Y', 'Y Plus', 'YX'] },
+  { model: 'Corolla', year: '2026', trims: ['1.5L XLI', '1.5L XLI Executive', '1.8L XLI Hybrid', '1.8L XLI EXECUTIVE HEV M/R', '2.0L XLI', '2.0L XLI Executive', '2.0L XLI Executive MR', '2.0L GLI MR'] },
+  { model: 'Camry', year: '2026', trims: ['E', 'LE', 'Grande', 'E HEV', 'E Plus HEV', 'LE HEV', 'Lumiere HEV'] },
+  { model: 'Crown', year: '2026', trims: ['Prestige', 'Premium', 'Majesta'] },
+  { model: 'GR86', year: '2026', trims: ['GR86 AT', 'GR86 RS MT'] },
+  { model: 'Supra', year: '2026', trims: ['Track Edition MT', 'Track Edition AT'] },
+  { model: 'Raize', year: '2026', trims: ['XLE', 'Limited'] },
+  { model: 'Urban Cruiser', year: '2026', trims: ['GL', 'GLX'] },
+  { model: 'Veloz', year: '2026', trims: ['GLX'] },
+  { model: 'Corolla Cross', year: '2025', trims: ['LE HEV', 'XLE HEV', 'Limited HEV', 'Limited Plus HEV'] },
+  { model: 'RAV4', year: '2026', trims: ['LE 4X2', 'LE 4X4', 'XLE 4x4', 'LE 4X2 HEV', 'LE 4X4 HEV', 'XLE 4x4 HEV', 'ADV 4x4 HEV', 'XSE 4x4 HEV', 'LTD 4X4 HEV'] },
+  { model: 'Innova', year: '2026', trims: ['GL', 'GL HEV', 'VIP7 HEV'] },
+  { model: 'Land Cruiser Hardtop', year: '2026', trims: ['DX - 5 Doors 4x4 MT', 'DX - 5 Doors 4x4 AT', 'DLX3 - 5 Doors 4x4 AT', 'S-DLX - 5 Doors 4x4 AT', 'DLX2 DSL - 5 Doors 4x4 AT', 'S-DLX DSL - 5 Doors 4x4 AT'] },
+  { model: 'Fortuner', year: '2026', trims: ['GX2 4X2', 'GX2 4X4', 'VX1 4x4', 'VX3-S 4x4', 'GX2 4X4 DSL', 'VX2-S DSL'] },
+  { model: 'Highlander', year: '2026', trims: ['LE HEV 4X2', 'GLE HEV 4X4', 'GLE PLUS HEV 4x4', 'LTD HEV 4X4'] },
+  { model: 'Prado', year: '2026', trims: ['TX-2', 'TXL-1', 'TXL-3', 'ADV-2 2T', 'ADV-2', 'VXL-3', 'TX-2 DSL', 'TXL-2 DSL', 'ADV-1 DSL'] },
+  { model: 'Land Cruiser 300', year: '2026', trims: ['GXR1', 'GXR2', 'GXR3', 'GXR4', 'VX', 'VX-R'] },
+  { model: 'Land Cruiser 300 HEV MAX', year: '2026', trims: ['GXR-S HEV MAX'] },
+  { model: 'Land Cruiser Pickup', year: '2026', trims: ['S-DLX - SC 4x4 AT', 'S-DLX - DC 4x4 AT', 'DX DSL - SC 4x4 MT', 'DX DSL - SC 4x4 AT', 'DLX3 DSL - SC 4x4 MT', 'DLX2 DSL - SC 4x4 AT', 'S-DLX DSL - SC 4x4 AT'] },
+  { model: 'Hilux غمارة (Single Cab)', year: '2026', trims: ['GLX 2.7L 4X2 MT', 'GLX 2.7L 4×4 MT', 'Deckless 2.4 DSL 4X2 MT', 'GL 2.4L DSL 4×2 MT', 'GL 2.8L DSL 4×2 MT', 'GLX 2.4L DSL 4X4 MT', 'GLX 2.8L DSL 4×4 MT', 'GLX 2.8L DSL 4×4 AT'] },
+  { model: 'Hilux دبل كاب (Double Cab)', year: '2026', trims: ['GLX1 2.7L 4X2 AT', 'GLX2 2.7L 4X2 MT', 'SGLX 2.7L 4X4 MT', 'SGLX 2.7L 4X4 AT', 'GR-S Rally Edition 4X4 4.0L AT', 'GR-S 4.0LS 4X4 AT', 'Adventure 4.0L 4X4 AT', 'GL 2.4L DSL 4X2 MT', 'GL2 2.4L DSL 4X4 MT', 'SGLX 2.4L DSL 4X4 AT', 'SGLX 2.8L DSL 4X4 AT'] },
+  { model: 'Liteace Van', year: '2026', trims: ['Gasoline MT', 'Gasoline AT'] },
+  { model: 'Coaster', year: '2026', trims: ['Coaster Gasoline MT', 'Coaster Diesel AT'] },
+  { model: 'Hiace Bus', year: '2026', trims: ['BUS GASOLINE MT', 'BUS DIESEL MT', 'BUS DIESEL AT'] },
+  { model: 'Hiace Van', year: '2026', trims: ['VAN STD GAS MT', 'VAN HIGH ROOF GAS MT', 'VAN STD DSL MT', 'Van Standard DSL AT (Swing Back Door)', 'VAN HIGH ROOF DSL MT', 'Van High Roof DSL AT (Swing Back Door)'] },
+];
+
 // Creates/migrates the full per-tenant schema on a given DatabaseSync
 // connection. Called once per tenant database (see server/tenantDb.js) —
 // every tenant gets its own file with this exact same schema, which is
@@ -541,6 +574,31 @@ CREATE INDEX IF NOT EXISTS idx_buyers_national_id ON buyers(customer_type, natio
   const appSettingsExists = db.prepare('SELECT 1 FROM app_settings WHERE id = 1').get();
   if (!appSettingsExists) {
     db.prepare('INSERT INTO app_settings (id, auto_assign_prospects) VALUES (1, 0)').run();
+  }
+
+  const appSettingsCols = db.prepare("PRAGMA table_info(app_settings)").all().map(c => c.name);
+  if (!appSettingsCols.includes('toyota_catalog_seeded_at')) {
+    db.exec('ALTER TABLE app_settings ADD COLUMN toyota_catalog_seeded_at TEXT');
+  }
+
+  // One-time replacement of any existing "Toyota" car_inventory entries with
+  // the official toyota.com.sa lineup above — requested explicitly by the
+  // owner ("احذف كل سيارات تويوتا وارجع سوّها"), so old/hand-entered Toyota
+  // rows are deleted outright rather than merged/deduped against the new
+  // list. Guarded by toyota_catalog_seeded_at so this runs exactly once per
+  // tenant — without the guard, every server restart would wipe out any
+  // color/price a seller later fills in per unit through the /cars UI.
+  const toyotaSeeded = db.prepare('SELECT toyota_catalog_seeded_at FROM app_settings WHERE id = 1').get();
+  if (!toyotaSeeded.toyota_catalog_seeded_at) {
+    const nowTs = new Date().toISOString();
+    db.exec("DELETE FROM car_inventory WHERE brand = 'Toyota'");
+    const insertToyota = db.prepare('INSERT INTO car_inventory (brand, model, year, trim, color, purchase_price, is_demo, created_at) VALUES (?,?,?,?,?,?,0,?)');
+    for (const { model, year, trims } of TOYOTA_CATALOG) {
+      for (const trim of trims) {
+        insertToyota.run('Toyota', model, year, trim, '', null, nowTs);
+      }
+    }
+    db.prepare('UPDATE app_settings SET toyota_catalog_seeded_at = ? WHERE id = 1').run(nowTs);
   }
 
   const sopExists = db.prepare('SELECT 1 FROM sop WHERE id = 1').get();
