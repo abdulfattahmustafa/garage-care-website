@@ -62,6 +62,100 @@ function getCarInventory(db) {
   return db.prepare('SELECT * FROM car_inventory ORDER BY brand, model, year, trim, color').all();
 }
 
+function getSaleCars(db, customerId) {
+  return db.prepare('SELECT * FROM sale_cars WHERE customer_id = ? ORDER BY id').all(customerId);
+}
+
+// A sale can include more than one car. Each car needs its own VIN
+// (mandatory, must be unique across every sale) and its own estimara
+// number (mandatory for individual sales, not for dealer sales, same rule
+// as before — just checked per car now instead of once per sale). Errors
+// are keyed car_<index>_<field> so the form can show them next to the
+// right car block.
+function validateCars(carsInput, isDealer) {
+  const cars = Array.isArray(carsInput) ? carsInput : (carsInput && typeof carsInput === 'object' ? [carsInput] : []);
+  const errors = {};
+  if (!cars.length) {
+    errors.cars = 'أضف سيارة واحدة على الأقل';
+    return { cars: [], errors };
+  }
+  const seenVins = new Set();
+  const seenEst = new Set();
+  cars.forEach((car, i) => {
+    if (!car.car_type || !car.car_type.trim()) errors[`car_${i}_car_type`] = 'نوع السيارة إلزامي';
+    if (!car.vin || !car.vin.trim()) {
+      errors[`car_${i}_vin`] = 'رقم الهيكل إلزامي';
+    } else {
+      const vinUpper = car.vin.trim().toUpperCase();
+      if (seenVins.has(vinUpper)) errors[`car_${i}_vin`] = 'رقم الهيكل مكرر بنفس عملية البيع';
+      seenVins.add(vinUpper);
+    }
+    if (!isDealer) {
+      if (!car.estimara_number || !car.estimara_number.trim()) {
+        errors[`car_${i}_estimara_number`] = 'رقم الاستمارة إلزامي';
+      } else {
+        const est = car.estimara_number.trim();
+        if (seenEst.has(est)) errors[`car_${i}_estimara_number`] = 'رقم الاستمارة مكرر بنفس عملية البيع';
+        seenEst.add(est);
+      }
+    }
+  });
+  return { cars, errors };
+}
+
+// Checks each car's VIN/estimara against every *other* sale's cars
+// (excludeCustomerId lets an edit ignore the sale's own existing cars).
+function checkCarDuplicates(db, cars, errors, excludeCustomerId) {
+  cars.forEach((car, i) => {
+    if (!errors[`car_${i}_vin`] && car.vin && car.vin.trim()) {
+      const dup = db.prepare('SELECT id FROM sale_cars WHERE vin = ? AND customer_id != ?')
+        .get(car.vin.trim().toUpperCase(), excludeCustomerId || -1);
+      if (dup) errors[`car_${i}_vin`] = 'رقم الهيكل هذا مسجل مسبقًا لعميل آخر';
+    }
+    if (!errors[`car_${i}_estimara_number`] && car.estimara_number && car.estimara_number.trim()) {
+      const dup = db.prepare('SELECT id FROM sale_cars WHERE estimara_number = ? AND customer_id != ?')
+        .get(car.estimara_number.trim(), excludeCustomerId || -1);
+      if (dup) errors[`car_${i}_estimara_number`] = 'رقم الاستمارة هذا مسجل مسبقًا';
+    }
+  });
+}
+
+// Replaces a sale's full car list. Deleting and re-inserting (rather than
+// diffing) is simple and safe here since nothing else references a
+// sale_cars row by id (no per-car attachments/logs).
+function saveCars(db, customerId, cars, ts) {
+  db.prepare('DELETE FROM sale_cars WHERE customer_id = ?').run(customerId);
+  const insert = db.prepare('INSERT INTO sale_cars (customer_id, car_type, car_inventory_id, vin, estimara_number, price, created_at) VALUES (?,?,?,?,?,?,?)');
+  cars.forEach(car => {
+    insert.run(
+      customerId,
+      car.car_type.trim(),
+      car.car_inventory_id ? parseInt(car.car_inventory_id) : null,
+      car.vin.trim().toUpperCase(),
+      car.estimara_number && car.estimara_number.trim() ? car.estimara_number.trim() : null,
+      car.price ? parseFloat(car.price) : null,
+      ts
+    );
+  });
+}
+
+// customers.car_type/vin/estimara_number/car_inventory_id/price stay in
+// sync with the sale's first car and total price, purely so every existing
+// reader of those columns (list page, dashboard stats, exports, global
+// search) keeps working unchanged and shows a sensible summary — the full
+// per-car breakdown always lives in sale_cars.
+function primaryCarFields(cars) {
+  const first = cars[0];
+  const totalPrice = cars.reduce((sum, c) => sum + (c.price ? parseFloat(c.price) : 0), 0);
+  return {
+    car_type: first.car_type.trim(),
+    car_inventory_id: first.car_inventory_id ? parseInt(first.car_inventory_id) : null,
+    vin: first.vin.trim().toUpperCase(),
+    estimara_number: first.estimara_number && first.estimara_number.trim() ? first.estimara_number.trim() : null,
+    price: totalPrice || null,
+  };
+}
+
 // --- List with search / filter / sort / pagination ---
 // Shared by /customers (individual "رخصة واستمارة" sales) and /customers/dealers
 // (wholesale "معارض" sales) — the two are kept as fully separate sections
@@ -127,7 +221,8 @@ router.get('/new', (req, res) => {
     prefill = { ...(prefill || {}), customer_type: 'معارض' };
   }
   const customFields = getCustomFields(db, 'customer');
-  res.render('customers/form', { customer: prefill, errors: {}, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), added: req.query.added === '1', customFields, customValues: {} });
+  const cars = prefill && prefill.car_type ? [{ car_type: prefill.car_type }] : [];
+  res.render('customers/form', { customer: prefill, errors: {}, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), added: req.query.added === '1', customFields, customValues: {}, cars });
 });
 
 // "رخصة واستمارة" is a normal retail sale to an individual; "معارض" is a
@@ -153,9 +248,6 @@ function validateBody(body) {
   if (!isDealer && body.payment_method === 'تمويل' && !BANKS.includes(body.bank_name)) {
     errors.bank_name = 'اختر الجهة الممولة';
   }
-  if (!body.car_type || !body.car_type.trim()) errors.car_type = 'نوع السيارة إلزامي';
-  if (!body.vin || !body.vin.trim()) errors.vin = 'رقم الهيكل إلزامي';
-  if (!isDealer && (!body.estimara_number || !body.estimara_number.trim())) errors.estimara_number = 'رقم الاستمارة إلزامي';
   if (body.phone && !validatePhone(body.phone)) errors.phone = 'الجوال لازم يبدأ بـ 05 ويتكون من 10 أرقام';
   return errors;
 }
@@ -163,25 +255,21 @@ function validateBody(body) {
 router.post('/', (req, res) => {
   const db = req.db;
   const body = req.body;
+  const isDealer = body.customer_type === 'معارض';
   const errors = validateBody(body);
   const customFields = getCustomFields(db, 'customer');
   const { data: customData, errors: customErrors } = validateAndBuild(customFields, body);
   Object.assign(errors, customErrors);
-
-  if (!errors.vin) {
-    const dupVin = db.prepare('SELECT id FROM customers WHERE vin = ?').get(body.vin.toUpperCase());
-    if (dupVin) errors.vin = 'رقم الهيكل هذا مسجل مسبقًا لعميل آخر';
-  }
-  if (!errors.estimara_number && body.estimara_number && body.estimara_number.trim()) {
-    const dupEst = db.prepare('SELECT id FROM customers WHERE estimara_number = ?').get(body.estimara_number.trim());
-    if (dupEst) errors.estimara_number = 'رقم الاستمارة هذا مسجل مسبقًا';
-  }
+  const { cars, errors: carErrors } = validateCars(body.cars, isDealer);
+  Object.assign(errors, carErrors);
+  if (!errors.cars) checkCarDuplicates(db, cars, errors, null);
 
   if (Object.keys(errors).length) {
-    return res.status(400).render('customers/form', { customer: body, errors, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), customFields, customValues: valuesFromBody(customFields, body) });
+    return res.status(400).render('customers/form', { customer: body, errors, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), customFields, customValues: valuesFromBody(customFields, body), cars });
   }
 
   const ts = nowISO();
+  const primary = primaryCarFields(cars);
   const stmt = db.prepare(`INSERT INTO customers
     (customer_type, customer_name, national_id, sale_date, payment_method, bank_name, delivery_at, car_type, car_inventory_id, vin, estimara_number, phone, salesperson, price, notes, status, reported, followup_done, custom_data, created_by, updated_by, is_demo, created_at, updated_at)
     VALUES (@customer_type, @customer_name, @national_id, @sale_date, @payment_method, @bank_name, @delivery_at, @car_type, @car_inventory_id, @vin, @estimara_number, @phone, @salesperson, @price, @notes, @status, 0, 0, @custom_data, @created_by, @updated_by, 0, @created_at, @updated_at)`);
@@ -194,19 +282,17 @@ router.post('/', (req, res) => {
     payment_method: body.payment_method,
     bank_name: body.payment_method === 'تمويل' && BANKS.includes(body.bank_name) ? body.bank_name : null,
     delivery_at: body.delivery_at || null,
-    car_type: body.car_type.trim(),
-    car_inventory_id: body.car_inventory_id ? parseInt(body.car_inventory_id) : null,
-    vin: body.vin.toUpperCase(),
-    estimara_number: body.estimara_number && body.estimara_number.trim() ? body.estimara_number.trim() : null,
+    ...primary,
     phone: body.phone ? body.phone.trim() : null,
     salesperson: body.salesperson ? body.salesperson.trim() : null,
-    price: body.price ? parseFloat(body.price) : null,
     notes: body.notes || null,
     status: STATUSES.includes(body.status) ? body.status : 'جديد',
     custom_data: Object.keys(customData).length ? JSON.stringify(customData) : null,
     created_by: req.session.userName, updated_by: req.session.userName,
     created_at: ts, updated_at: ts,
   });
+
+  saveCars(db, info.lastInsertRowid, cars, ts);
 
   logActivity(req, 'إضافة عميل', { entityType: 'customer', entityId: info.lastInsertRowid, details: body.customer_name.trim() });
 
@@ -227,7 +313,8 @@ router.get('/:id', (req, res) => {
   const customFields = getCustomFields(db, 'customer');
   const customValues = parseCustomData(customer.custom_data);
   const timeline = getUnifiedTimeline(db, { entityType: 'customer', entityId: customer.id, logTable: 'contact_log', logIdCol: 'customer_id' });
-  res.render('customers/detail', { customer, attachments, isReportOverdue, uploadError: req.query.error || null, customFields, customValues, timeline });
+  const cars = getSaleCars(db, customer.id);
+  res.render('customers/detail', { customer, attachments, isReportOverdue, uploadError: req.query.error || null, customFields, customValues, timeline, cars });
 });
 
 router.get('/:id/edit', (req, res) => {
@@ -237,7 +324,8 @@ router.get('/:id/edit', (req, res) => {
   if (!canEditCustomer(req, customer)) return res.status(403).render('403');
   const customFields = getCustomFields(db, 'customer');
   const customValues = parseCustomData(customer.custom_data);
-  res.render('customers/form', { customer, errors: {}, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), customFields, customValues });
+  const cars = getSaleCars(db, customer.id);
+  res.render('customers/form', { customer, errors: {}, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), customFields, customValues, cars });
 });
 
 router.post('/:id', (req, res) => {
@@ -247,24 +335,21 @@ router.post('/:id', (req, res) => {
   if (!canEditCustomer(req, existing)) return res.status(403).render('403');
 
   const body = req.body;
+  const isDealer = body.customer_type === 'معارض';
   const errors = validateBody(body);
   const customFields = getCustomFields(db, 'customer');
   const { data: customData, errors: customErrors } = validateAndBuild(customFields, body);
   Object.assign(errors, customErrors);
-
-  if (!errors.vin) {
-    const dupVin = db.prepare('SELECT id FROM customers WHERE vin = ? AND id != ?').get(body.vin.toUpperCase(), req.params.id);
-    if (dupVin) errors.vin = 'رقم الهيكل هذا مسجل مسبقًا لعميل آخر';
-  }
-  if (!errors.estimara_number && body.estimara_number && body.estimara_number.trim()) {
-    const dupEst = db.prepare('SELECT id FROM customers WHERE estimara_number = ? AND id != ?').get(body.estimara_number.trim(), req.params.id);
-    if (dupEst) errors.estimara_number = 'رقم الاستمارة هذا مسجل مسبقًا';
-  }
+  const { cars, errors: carErrors } = validateCars(body.cars, isDealer);
+  Object.assign(errors, carErrors);
+  if (!errors.cars) checkCarDuplicates(db, cars, errors, req.params.id);
 
   if (Object.keys(errors).length) {
-    return res.status(400).render('customers/form', { customer: { ...body, id: req.params.id }, errors, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), customFields, customValues: valuesFromBody(customFields, body) });
+    return res.status(400).render('customers/form', { customer: { ...body, id: req.params.id }, errors, PAYMENT_METHODS, STATUSES, CUSTOMER_TYPES, BANKS, salespeople: getSalespeople(db), carInventory: getCarInventory(db), customFields, customValues: valuesFromBody(customFields, body), cars });
   }
 
+  const ts = nowISO();
+  const primary = primaryCarFields(cars);
   db.prepare(`UPDATE customers SET
     customer_type=@customer_type, customer_name=@customer_name, national_id=@national_id, sale_date=@sale_date, payment_method=@payment_method, bank_name=@bank_name,
     delivery_at=@delivery_at, car_type=@car_type, car_inventory_id=@car_inventory_id, vin=@vin, estimara_number=@estimara_number, phone=@phone,
@@ -277,20 +362,18 @@ router.post('/:id', (req, res) => {
     payment_method: body.payment_method,
     bank_name: body.payment_method === 'تمويل' && BANKS.includes(body.bank_name) ? body.bank_name : null,
     delivery_at: body.delivery_at || null,
-    car_type: body.car_type.trim(),
-    car_inventory_id: body.car_inventory_id ? parseInt(body.car_inventory_id) : null,
-    vin: body.vin.toUpperCase(),
-    estimara_number: body.estimara_number && body.estimara_number.trim() ? body.estimara_number.trim() : null,
+    ...primary,
     phone: body.phone ? body.phone.trim() : null,
     salesperson: body.salesperson ? body.salesperson.trim() : null,
-    price: body.price ? parseFloat(body.price) : null,
     notes: body.notes || null,
     status: STATUSES.includes(body.status) ? body.status : existing.status,
     custom_data: Object.keys(customData).length ? JSON.stringify(customData) : null,
     updated_by: req.session.userName,
-    updated_at: nowISO(),
+    updated_at: ts,
     id: req.params.id,
   });
+
+  saveCars(db, req.params.id, cars, ts);
 
   logActivity(req, 'تعديل عميل', { entityType: 'customer', entityId: req.params.id, details: body.customer_name.trim() });
   res.redirect('/customers/' + req.params.id);

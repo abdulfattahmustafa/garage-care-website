@@ -90,45 +90,16 @@
         </div>
       </div>
 
-      <div class="field">
-        <label>نوع السيارة *</label>
-        <div class="form-row" id="carPickerSelects">
-          <select id="carBrand"><option value="">اختر الشركة...</option></select>
-          <select id="carModel" disabled><option value="">اختر الموديل...</option></select>
-          <select id="carYear" disabled><option value="">اختر السنة...</option></select>
-          <select id="carTrim" disabled><option value="">اختر الفئة...</option></select>
-          <select id="carColor" disabled><option value="">اختر اللون...</option></select>
-        </div>
-        <input type="text" id="carManualInput" placeholder="مثال: Toyota Camry 2026 GLX - أبيض" style="display:none; margin-top:8px">
-        <div class="hint">
-          <label><input type="checkbox" id="manualCarToggle"> السيارة مو موجودة بالقائمة (كتابة يدوية)</label>
-          — أو <a href="/cars" target="_blank">أضفها لقائمة السيارات</a> وارجع حدّث هذي الصفحة
-        </div>
-        <input type="hidden" name="car_type" id="carTypeHidden" value="<%= customer ? customer.car_type || '' : '' %>">
-        <input type="hidden" name="car_inventory_id" id="carInventoryIdHidden" value="<%= customer ? customer.car_inventory_id || '' : '' %>">
-        <% if (errors.car_type) { %><div class="err"><%= errors.car_type %></div><% } %>
-      </div>
+      <div class="divider"></div>
 
-      <div class="form-row">
-        <div class="field">
-          <label>سعر البيع (ريال)</label>
-          <input type="number" step="0.01" name="price" value="<%= customer ? customer.price || '' : '' %>">
-        </div>
-        <div class="field"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+        <div class="section-title" style="font-size:16px; margin:0"><span class="bar"></span> السيارات</div>
+        <button type="button" id="addCarBtn" class="btn btn-outline btn-sm">+ إضافة سيارة</button>
       </div>
+      <% if (errors.cars) { %><div class="err" style="margin-bottom:10px"><%= errors.cars %></div><% } %>
+      <div id="carsContainer"></div>
 
-      <div class="form-row">
-        <div class="field">
-          <label>رقم هيكل السيارة VIN *</label>
-          <input type="text" name="vin" style="text-transform:uppercase" value="<%= customer ? customer.vin || '' : '' %>" class="<%= errors.vin ? 'invalid' : '' %>" required>
-          <% if (errors.vin) { %><div class="err"><%= errors.vin %></div><% } %>
-        </div>
-        <div class="field">
-          <label id="labelEstimara">رقم الاستمارة *</label>
-          <input type="text" name="estimara_number" id="estimaraInput" value="<%= customer ? customer.estimara_number || '' : '' %>" class="<%= errors.estimara_number ? 'invalid' : '' %>" required>
-          <% if (errors.estimara_number) { %><div class="err"><%= errors.estimara_number %></div><% } %>
-        </div>
-      </div>
+      <div class="divider"></div>
 
       <div class="form-row">
         <div class="field">
@@ -192,8 +163,6 @@
     </form>
   </main>
   <script>
-    document.querySelector('input[name="vin"]').addEventListener('input', function(){ this.value = this.value.toUpperCase(); });
-
     // نوع العميل: يبدّل التسميات والقيود بين بيع فردي (رخصة واستمارة) وبيع
     // لمعرض ثاني — نفس الأعمدة بقاعدة البيانات، بس قواعد مختلفة.
     const typeLicense = document.getElementById('typeLicense');
@@ -204,8 +173,6 @@
     const paymentSelect = document.getElementById('paymentSelect');
     const paymentDealerDisplay = document.getElementById('paymentDealerDisplay');
     const paymentDealerHidden = document.getElementById('paymentDealerHidden');
-    const labelEstimara = document.getElementById('labelEstimara');
-    const estimaraInput = document.getElementById('estimaraInput');
     const deliveryHint = document.getElementById('deliveryHint');
     const bankRow = document.getElementById('bankRow');
     const bankSelect = document.getElementById('bankSelect');
@@ -240,104 +207,192 @@
       paymentSelect.required = !isDealer;
       paymentDealerHidden.disabled = !isDealer;
 
-      labelEstimara.textContent = isDealer ? 'رقم الاستمارة (اختياري)' : 'رقم الاستمارة *';
-      estimaraInput.required = !isDealer;
-
       deliveryHint.style.display = isDealer ? 'none' : '';
+
+      // كل خانات "رقم الاستمارة" بكل السيارات تتحول إلزامي/اختياري مع بعض.
+      document.querySelectorAll('.car-block').forEach(block => {
+        const label = block.querySelector('.carEstimaraLabel');
+        const input = block.querySelector('.carEstimaraInput');
+        label.textContent = isDealer ? 'رقم الاستمارة (اختياري)' : 'رقم الاستمارة *';
+        input.required = !isDealer;
+      });
 
       updateBankVisibility();
     }
 
     typeLicense.addEventListener('change', applyCustomerType);
     typeDealer.addEventListener('change', applyCustomerType);
-    applyCustomerType();
 
+    // ===== قسم السيارات (يقدر يشيل أكثر من سيارة بنفس عملية البيع) =====
     const CAR_INVENTORY = <%- JSON.stringify(carInventory) %>;
-    const existingCustomer = <%- JSON.stringify(customer || null) %>;
-
-    const brandSel = document.getElementById('carBrand');
-    const modelSel = document.getElementById('carModel');
-    const yearSel = document.getElementById('carYear');
-    const trimSel = document.getElementById('carTrim');
-    const colorSel = document.getElementById('carColor');
-    const selectsWrap = document.getElementById('carPickerSelects');
-    const manualToggle = document.getElementById('manualCarToggle');
-    const manualInput = document.getElementById('carManualInput');
-    const hiddenType = document.getElementById('carTypeHidden');
-    const hiddenInvId = document.getElementById('carInventoryIdHidden');
+    const INITIAL_CARS = <%- JSON.stringify((typeof cars !== 'undefined' && cars && cars.length) ? cars : [{}]) %>;
+    const CAR_ERRORS = <%- JSON.stringify(errors || {}) %>;
+    const carsContainer = document.getElementById('carsContainer');
+    const addCarBtn = document.getElementById('addCarBtn');
+    let carIndex = 0;
 
     function uniqueBy(list, key) { return [...new Set(list.map(i => i[key]))]; }
     function fillSelect(sel, values, placeholder) {
       sel.innerHTML = '<option value="">' + placeholder + '</option>' +
         values.map(v => '<option value="' + v + '">' + v + '</option>').join('');
     }
-    function resetFrom(level) {
-      if (level <= 1) { modelSel.disabled = true; fillSelect(modelSel, [], 'اختر الموديل...'); }
-      if (level <= 2) { yearSel.disabled = true; fillSelect(yearSel, [], 'اختر السنة...'); }
-      if (level <= 3) { trimSel.disabled = true; fillSelect(trimSel, [], 'اختر الفئة...'); }
-      if (level <= 4) { colorSel.disabled = true; fillSelect(colorSel, [], 'اختر اللون...'); }
-      hiddenType.value = '';
-      hiddenInvId.value = '';
+
+    function reindexCars() {
+      const blocks = carsContainer.querySelectorAll('.car-block');
+      blocks.forEach((block, i) => {
+        block.dataset.index = i;
+        block.querySelector('.car-num').textContent = i + 1;
+        block.querySelectorAll('[data-name]').forEach(el => {
+          el.name = 'cars[' + i + '][' + el.dataset.name + ']';
+        });
+      });
+      // لازم سيارة وحدة على الأقل — زر الحذف يختفي لو ما بقي إلا سيارة وحدة.
+      const removeBtns = carsContainer.querySelectorAll('.remove-car-btn');
+      removeBtns.forEach(btn => { btn.style.display = blocks.length > 1 ? '' : 'none'; });
     }
 
-    fillSelect(brandSel, uniqueBy(CAR_INVENTORY, 'brand'), 'اختر الشركة...');
+    function addCarBlock(data) {
+      data = data || {};
+      const i = carIndex++;
+      const block = document.createElement('div');
+      block.className = 'car-block';
+      block.style.cssText = 'margin-bottom:14px; padding:14px; border:1px solid var(--border); border-radius:8px';
+      block.dataset.index = i;
+      block.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+          <strong>سيارة رقم <span class="car-num">${i + 1}</span></strong>
+          <button type="button" class="btn btn-outline btn-sm remove-car-btn">🗑️ حذف السيارة</button>
+        </div>
+        <div class="field">
+          <label>نوع السيارة *</label>
+          <div class="form-row car-picker-selects">
+            <select class="carBrand"><option value="">اختر الشركة...</option></select>
+            <select class="carModel" disabled><option value="">اختر الموديل...</option></select>
+            <select class="carYear" disabled><option value="">اختر السنة...</option></select>
+            <select class="carTrim" disabled><option value="">اختر الفئة...</option></select>
+            <select class="carColor" disabled><option value="">اختر اللون...</option></select>
+          </div>
+          <input type="text" class="carManualInput" placeholder="مثال: Toyota Camry 2026 GLX - أبيض" style="display:none; margin-top:8px">
+          <div class="hint">
+            <label><input type="checkbox" class="manualCarToggle"> السيارة مو موجودة بالقائمة (كتابة يدوية)</label>
+            — أو <a href="/cars" target="_blank">أضفها لقائمة السيارات</a> وارجع حدّث هذي الصفحة
+          </div>
+          <input type="hidden" class="carTypeHidden" data-name="car_type" name="cars[${i}][car_type]" value="">
+          <input type="hidden" class="carInventoryIdHidden" data-name="car_inventory_id" name="cars[${i}][car_inventory_id]" value="">
+          <div class="err car-type-err" style="display:none"></div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>رقم هيكل السيارة VIN *</label>
+            <input type="text" class="carVinInput" data-name="vin" name="cars[${i}][vin]" style="text-transform:uppercase" required>
+            <div class="err car-vin-err" style="display:none"></div>
+          </div>
+          <div class="field">
+            <label class="carEstimaraLabel">رقم الاستمارة *</label>
+            <input type="text" class="carEstimaraInput" data-name="estimara_number" name="cars[${i}][estimara_number]" required>
+            <div class="err car-estimara-err" style="display:none"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>سعر السيارة (ريال)</label>
+            <input type="number" step="0.01" class="carPriceInput" data-name="price" name="cars[${i}][price]">
+          </div>
+          <div class="field"></div>
+        </div>
+      `;
+      carsContainer.appendChild(block);
 
-    brandSel.addEventListener('change', () => {
-      resetFrom(1);
-      if (!brandSel.value) return;
-      const models = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value), 'model');
-      fillSelect(modelSel, models, 'اختر الموديل...');
-      modelSel.disabled = false;
-    });
+      const brandSel = block.querySelector('.carBrand');
+      const modelSel = block.querySelector('.carModel');
+      const yearSel = block.querySelector('.carYear');
+      const trimSel = block.querySelector('.carTrim');
+      const colorSel = block.querySelector('.carColor');
+      const selectsWrap = block.querySelector('.car-picker-selects');
+      const manualToggle = block.querySelector('.manualCarToggle');
+      const manualInput = block.querySelector('.carManualInput');
+      const hiddenType = block.querySelector('.carTypeHidden');
+      const hiddenInvId = block.querySelector('.carInventoryIdHidden');
+      const vinInput = block.querySelector('.carVinInput');
+      const estimaraInput = block.querySelector('.carEstimaraInput');
+      const priceInput = block.querySelector('.carPriceInput');
 
-    modelSel.addEventListener('change', () => {
-      resetFrom(2);
-      if (!modelSel.value) return;
-      const years = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value && c.model === modelSel.value), 'year');
-      fillSelect(yearSel, years, 'اختر السنة...');
-      yearSel.disabled = false;
-    });
-
-    yearSel.addEventListener('change', () => {
-      resetFrom(3);
-      if (!yearSel.value) return;
-      const trims = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value), 'trim');
-      fillSelect(trimSel, trims, 'اختر الفئة...');
-      trimSel.disabled = false;
-    });
-
-    trimSel.addEventListener('change', () => {
-      resetFrom(4);
-      if (!trimSel.value) return;
-      const colors = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value && c.trim === trimSel.value), 'color');
-      fillSelect(colorSel, colors, 'اختر اللون...');
-      colorSel.disabled = false;
-    });
-
-    colorSel.addEventListener('change', () => {
-      if (!colorSel.value) { hiddenType.value = ''; hiddenInvId.value = ''; return; }
-      const match = CAR_INVENTORY.find(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value && c.trim === trimSel.value && c.color === colorSel.value);
-      hiddenType.value = brandSel.value + ' ' + modelSel.value + ' ' + yearSel.value + ' ' + trimSel.value + ' - ' + colorSel.value;
-      hiddenInvId.value = match ? match.id : '';
-    });
-
-    manualToggle.addEventListener('change', () => {
-      if (manualToggle.checked) {
-        selectsWrap.style.display = 'none';
-        manualInput.style.display = '';
-        hiddenInvId.value = '';
-        hiddenType.value = manualInput.value;
-      } else {
-        manualInput.style.display = 'none';
-        selectsWrap.style.display = '';
+      function resetFrom(level) {
+        if (level <= 1) { modelSel.disabled = true; fillSelect(modelSel, [], 'اختر الموديل...'); }
+        if (level <= 2) { yearSel.disabled = true; fillSelect(yearSel, [], 'اختر السنة...'); }
+        if (level <= 3) { trimSel.disabled = true; fillSelect(trimSel, [], 'اختر الفئة...'); }
+        if (level <= 4) { colorSel.disabled = true; fillSelect(colorSel, [], 'اختر اللون...'); }
         hiddenType.value = '';
+        hiddenInvId.value = '';
       }
-    });
-    manualInput.addEventListener('input', () => { hiddenType.value = manualInput.value; });
 
-    // Pre-fill when editing an existing sale (or re-showing the form after a validation error)
-    if (existingCustomer) {
-      const invId = existingCustomer.car_inventory_id;
+      fillSelect(brandSel, uniqueBy(CAR_INVENTORY, 'brand'), 'اختر الشركة...');
+
+      brandSel.addEventListener('change', () => {
+        resetFrom(1);
+        if (!brandSel.value) return;
+        const models = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value), 'model');
+        fillSelect(modelSel, models, 'اختر الموديل...');
+        modelSel.disabled = false;
+      });
+
+      modelSel.addEventListener('change', () => {
+        resetFrom(2);
+        if (!modelSel.value) return;
+        const years = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value && c.model === modelSel.value), 'year');
+        fillSelect(yearSel, years, 'اختر السنة...');
+        yearSel.disabled = false;
+      });
+
+      yearSel.addEventListener('change', () => {
+        resetFrom(3);
+        if (!yearSel.value) return;
+        const trims = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value), 'trim');
+        fillSelect(trimSel, trims, 'اختر الفئة...');
+        trimSel.disabled = false;
+      });
+
+      trimSel.addEventListener('change', () => {
+        resetFrom(4);
+        if (!trimSel.value) return;
+        const colors = uniqueBy(CAR_INVENTORY.filter(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value && c.trim === trimSel.value), 'color');
+        fillSelect(colorSel, colors, 'اختر اللون...');
+        colorSel.disabled = false;
+      });
+
+      colorSel.addEventListener('change', () => {
+        if (!colorSel.value) { hiddenType.value = ''; hiddenInvId.value = ''; return; }
+        const match = CAR_INVENTORY.find(c => c.brand === brandSel.value && c.model === modelSel.value && c.year === yearSel.value && c.trim === trimSel.value && c.color === colorSel.value);
+        hiddenType.value = brandSel.value + ' ' + modelSel.value + ' ' + yearSel.value + ' ' + trimSel.value + ' - ' + colorSel.value;
+        hiddenInvId.value = match ? match.id : '';
+      });
+
+      manualToggle.addEventListener('change', () => {
+        if (manualToggle.checked) {
+          selectsWrap.style.display = 'none';
+          manualInput.style.display = '';
+          hiddenInvId.value = '';
+          hiddenType.value = manualInput.value;
+        } else {
+          manualInput.style.display = 'none';
+          selectsWrap.style.display = '';
+          hiddenType.value = '';
+        }
+      });
+      manualInput.addEventListener('input', () => { hiddenType.value = manualInput.value; });
+      vinInput.addEventListener('input', () => { vinInput.value = vinInput.value.toUpperCase(); });
+
+      block.querySelector('.remove-car-btn').addEventListener('click', () => {
+        block.remove();
+        reindexCars();
+      });
+
+      // تعبئة القيم — إما سيارة موجودة أصلاً (تعديل) أو بيانات أعيد عرضها بعد خطأ تحقق.
+      if (data.vin) vinInput.value = data.vin;
+      if (data.estimara_number) estimaraInput.value = data.estimara_number;
+      if (data.price) priceInput.value = data.price;
+
+      const invId = data.car_inventory_id;
       const match = invId ? CAR_INVENTORY.find(c => String(c.id) === String(invId)) : null;
       if (match) {
         brandSel.value = match.brand; brandSel.dispatchEvent(new Event('change'));
@@ -345,13 +400,36 @@
         yearSel.value = String(match.year); yearSel.dispatchEvent(new Event('change'));
         trimSel.value = match.trim; trimSel.dispatchEvent(new Event('change'));
         colorSel.value = match.color; colorSel.dispatchEvent(new Event('change'));
-      } else if (existingCustomer.car_type) {
+      } else if (data.car_type) {
         manualToggle.checked = true;
         manualToggle.dispatchEvent(new Event('change'));
-        manualInput.value = existingCustomer.car_type;
-        hiddenType.value = existingCustomer.car_type;
+        manualInput.value = data.car_type;
+        hiddenType.value = data.car_type;
+      }
+
+      // أخطاء تحقق من السيرفر (لو رجعت الصفحة بعد خطأ) — تُقرأ من CAR_ERRORS
+      // بمفتاح الفهرس الأصلي اللي أرسله المستخدم، مو الفهرس الحالي بعد أي حذف.
+      if (typeof data.__errIndex === 'number') {
+        const ei = data.__errIndex;
+        const typeErr = CAR_ERRORS['car_' + ei + '_car_type'];
+        const vinErr = CAR_ERRORS['car_' + ei + '_vin'];
+        const estErr = CAR_ERRORS['car_' + ei + '_estimara_number'];
+        if (typeErr) { const d = block.querySelector('.car-type-err'); d.textContent = typeErr; d.style.display = ''; }
+        if (vinErr) { const d = block.querySelector('.car-vin-err'); d.textContent = vinErr; d.style.display = ''; vinInput.classList.add('invalid'); }
+        if (estErr) { const d = block.querySelector('.car-estimara-err'); d.textContent = estErr; d.style.display = ''; estimaraInput.classList.add('invalid'); }
+      }
+
+      if (typeDealer.checked) {
+        block.querySelector('.carEstimaraLabel').textContent = 'رقم الاستمارة (اختياري)';
+        estimaraInput.required = false;
       }
     }
+
+    addCarBtn.addEventListener('click', () => { addCarBlock({}); reindexCars(); });
+
+    INITIAL_CARS.forEach((car, i) => addCarBlock({ ...car, __errIndex: i }));
+    reindexCars();
+    applyCustomerType();
   </script>
 </body>
 </html>

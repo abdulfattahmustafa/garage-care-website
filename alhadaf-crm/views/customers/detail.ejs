@@ -36,10 +36,7 @@
           <div><div class="k">الجوال</div><div class="v"><%= customer.phone || '—' %></div></div>
           <div><div class="k">تاريخ البيع</div><div class="v"><%= customer.sale_date %></div></div>
           <div><div class="k">تاريخ التسليم</div><div class="v"><%= customer.delivery_at ? customer.delivery_at.replace('T',' ') : '—' %></div></div>
-          <div><div class="k">نوع السيارة</div><div class="v"><%= customer.car_type %></div></div>
-          <div><div class="k">سعر البيع</div><div class="v"><%= customer.price ? Number(customer.price).toLocaleString('en-US') + ' ريال' : '—' %></div></div>
-          <div><div class="k">رقم الهيكل VIN</div><div class="v"><%= customer.vin %></div></div>
-          <div><div class="k">رقم الاستمارة</div><div class="v"><%= customer.estimara_number || '—' %></div></div>
+          <div><div class="k">إجمالي سعر البيع</div><div class="v"><%= customer.price ? Number(customer.price).toLocaleString('en-US') + ' ريال' : '—' %></div></div>
           <div><div class="k">طريقة الدفع</div><div class="v"><%= customer.payment_method %></div></div>
           <% if (customer.bank_name) { %>
             <div><div class="k">الجهة الممولة</div><div class="v"><%= customer.bank_name %></div></div>
@@ -109,6 +106,25 @@
         </form>
         <% } %>
         <% } %>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="section-title" style="font-size:16px"><span class="bar"></span> السيارات (<%= cars.length %>)</div>
+      <div class="table-wrap" style="padding:0">
+        <table>
+          <thead><tr><th>نوع السيارة</th><th>رقم الهيكل VIN</th><th>رقم الاستمارة</th><th>السعر</th></tr></thead>
+          <tbody>
+            <% cars.forEach(c => { %>
+              <tr>
+                <td><%= c.car_type %></td>
+                <td><%= c.vin %></td>
+                <td><%= c.estimara_number || '—' %></td>
+                <td><%= c.price ? Number(c.price).toLocaleString('en-US') + ' ريال' : '—' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
       </div>
     </div>
 

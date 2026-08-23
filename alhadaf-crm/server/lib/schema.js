@@ -150,11 +150,29 @@ CREATE TABLE IF NOT EXISTS custom_fields (
   created_at TEXT NOT NULL
 );
 
+-- One sale (a customers row) can include more than one car. customers'
+-- own car_type/vin/estimara_number/car_inventory_id/price columns are kept
+-- in sync with the *first* car here purely so every existing consumer that
+-- reads them directly (list page, dashboard stats, exports, search) keeps
+-- working unchanged and shows a sensible "primary car" at a glance; the
+-- full set for a sale always lives here.
+CREATE TABLE IF NOT EXISTS sale_cars (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  car_type TEXT NOT NULL,
+  car_inventory_id INTEGER REFERENCES car_inventory(id) ON DELETE SET NULL,
+  vin TEXT NOT NULL UNIQUE,
+  estimara_number TEXT UNIQUE,
+  price REAL,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_customers_sale_date ON customers(sale_date);
 CREATE INDEX IF NOT EXISTS idx_contact_log_customer ON contact_log(customer_id);
 CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_prospect_log_prospect ON prospect_log(prospect_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
+CREATE INDEX IF NOT EXISTS idx_sale_cars_customer ON sale_cars(customer_id);
 `);
 
   // Migration for tenant databases created before car_inventory/created_by
@@ -402,6 +420,35 @@ CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
       note TEXT,
       created_at TEXT NOT NULL
     )`, 'CREATE INDEX IF NOT EXISTS idx_prospect_log_prospect ON prospect_log(prospect_id)');
+  }
+  if (hasOrphanedReference('sale_cars')) {
+    rebuildTable('sale_cars', `CREATE TABLE sale_cars (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      car_type TEXT NOT NULL,
+      car_inventory_id INTEGER REFERENCES car_inventory(id) ON DELETE SET NULL,
+      vin TEXT NOT NULL UNIQUE,
+      estimara_number TEXT UNIQUE,
+      price REAL,
+      created_at TEXT NOT NULL
+    )`, 'CREATE INDEX IF NOT EXISTS idx_sale_cars_customer ON sale_cars(customer_id)');
+  }
+
+  // Migration for tenant databases created before multi-car sales existed:
+  // backfill one sale_cars row per existing customer from its own (still
+  // populated, still kept in sync going forward) car_type/vin/etc. columns
+  // — anything already backfilled is skipped via NOT EXISTS, so this is
+  // safe to run on every initSchema() call.
+  const needsCarBackfill = db.prepare(`
+    SELECT c.id, c.car_type, c.car_inventory_id, c.vin, c.estimara_number, c.price, c.created_at
+    FROM customers c
+    WHERE NOT EXISTS (SELECT 1 FROM sale_cars sc WHERE sc.customer_id = c.id)
+  `).all();
+  if (needsCarBackfill.length) {
+    const insertCar = db.prepare(`INSERT INTO sale_cars (customer_id, car_type, car_inventory_id, vin, estimara_number, price, created_at) VALUES (?,?,?,?,?,?,?)`);
+    for (const c of needsCarBackfill) {
+      insertCar.run(c.id, c.car_type, c.car_inventory_id, c.vin, c.estimara_number, c.price, c.created_at);
+    }
   }
 
   // Migration for tenant databases created before custom fields existed.
